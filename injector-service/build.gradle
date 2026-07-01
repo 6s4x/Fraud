@@ -23,6 +23,7 @@ dependencies {
   implementation 'org.ow2.asm:asm:9.6'
   implementation 'org.ow2.asm:asm-commons:9.6'
   implementation 'commons-io:commons-io:2.15.1'
+  compileOnly 'org.apache.logging.log4j:log4j-core:2.23.0'
 }
 
 shadowJar {
