@@ -7,36 +7,50 @@ export default function ServerDashboard({ server, onBack }) {
   const { lines, connected, sendCommand } = useConsole(server.id);
 
   return (
-    <div className="dashboard">
+    <div>
       <div className="dashboard-header">
-        <button className="back-btn" onClick={onBack}>← back</button>
+        <button className="back-btn" onClick={onBack}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
         <div className="dashboard-title">
-          {server.name || server.ip}
-          <span style={{
-            display: 'inline-block',
-            width: '8px', height: '8px',
-            borderRadius: '50%',
-            background: server.online ? 'var(--green)' : 'var(--red)',
-            marginLeft: '10px',
-          }} />
+          {server.name || server.ip || 'Server'}
+          <span className={`dashboard-server-status ${server.online ? 'online' : 'offline'}`} />
         </div>
       </div>
 
       <div className="dashboard-grid">
-        {/* Server Info */}
         <div className="dashboard-panel">
-          <h3>Server Info</h3>
-          <div className="info-row"><span className="label">IP</span><span className="value">{server.ip}</span></div>
-          <div className="info-row"><span className="label">Port</span><span className="value">{server.port}</span></div>
-          <div className="info-row"><span className="label">Players</span><span className="value">{server.playerCount}/{server.maxPlayers}</span></div>
-          <div className="info-row"><span className="label">Version</span><span className="value">{server.version || '?'}</span></div>
-          <div className="info-row"><span className="label">TPS</span><span className="value">{server.tps?.toFixed?.(1) || '?'}</span></div>
-          <div className="info-row"><span className="label">Type</span><span className="value">{server.type || 'paper'}</span></div>
+          <div className="dashboard-panel-header">
+            <h3>Server Info</h3>
+          </div>
+          <div className="info-rows">
+            <div className="info-row">
+              <span className="label">Address</span>
+              <span className="value">{server.ip || '-'}:{server.port || '?'}</span>
+            </div>
+            <div className="info-row">
+              <span className="label">Players</span>
+              <span className="value">{server.playerCount || 0}/{server.maxPlayers || '?'}</span>
+            </div>
+            <div className="info-row">
+              <span className="label">Version</span>
+              <span className="value">{server.version || '?'}</span>
+            </div>
+            <div className="info-row">
+              <span className="label">TPS</span>
+              <span className="value">{server.tps?.toFixed?.(1) || '?'}</span>
+            </div>
+            <div className="info-row">
+              <span className="label">Type</span>
+              <span className="value">{server.type || 'paper'}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Players */}
         <div className="dashboard-panel">
-          <h3>Players ({server.players?.length || 0})</h3>
+          <div className="dashboard-panel-header">
+            <h3>Players ({server.players?.length || 0})</h3>
+          </div>
           {server.players && server.players.length > 0 ? (
             <div className="player-list">
               {server.players.map((p, i) => (
@@ -44,19 +58,24 @@ export default function ServerDashboard({ server, onBack }) {
               ))}
             </div>
           ) : (
-            <div style={{ color: 'var(--text2)', fontSize: '13px' }}>no players online</div>
+            <div style={{ color: 'var(--text-dim)', fontSize: '13px' }}>No players online</div>
           )}
         </div>
 
-        {/* Console */}
         <div className="dashboard-panel full">
-          <h3>Console {connected ? '🟢 live' : '🔴 disconnected'}</h3>
+          <div className="dashboard-panel-header">
+            <h3>Console</h3>
+            <span className={`dashboard-panel-badge ${connected ? 'live' : 'off'}`}>
+              {connected ? 'live' : 'disconnected'}
+            </span>
+          </div>
           <Console lines={lines} onCommand={sendCommand} connected={connected} />
         </div>
 
-        {/* File Browser */}
         <div className="dashboard-panel full">
-          <h3>Files</h3>
+          <div className="dashboard-panel-header">
+            <h3>Files</h3>
+          </div>
           <FileBrowser serverId={server.id} />
         </div>
       </div>

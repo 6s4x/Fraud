@@ -7,12 +7,17 @@ export default function Servers({ servers, onSelect }) {
 
   if (servers.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text2)' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📡</div>
-        <h2 style={{ marginBottom: '8px' }}>No servers yet</h2>
-        <p style={{ fontSize: '14px' }}>
-          Install the fraudoor plugin on your server to see it here.
-        </p>
+      <div className="empty-state">
+        <div className="empty-state-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+            <circle cx="6" cy="6" r="1" fill="currentColor"/>
+            <circle cx="6" cy="18" r="1" fill="currentColor"/>
+          </svg>
+        </div>
+        <h2>No servers detected</h2>
+        <p>Inject a plugin and add it to your server. When the server starts, the agent will connect here automatically.</p>
       </div>
     );
   }
@@ -21,9 +26,10 @@ export default function Servers({ servers, onSelect }) {
     <div>
       {online.length > 0 && (
         <>
-          <h2 style={{ fontSize: '14px', color: 'var(--green)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            online ({online.length})
-          </h2>
+          <div className="section-header">
+            <span className="section-dot" style={{ background: 'var(--green)' }} />
+            Online ({online.length})
+          </div>
           <div className="server-grid">
             {online.map(s => (
               <ServerCard key={s.id} server={s} onClick={() => onSelect(s)} />
@@ -33,9 +39,10 @@ export default function Servers({ servers, onSelect }) {
       )}
       {offline.length > 0 && (
         <>
-          <h2 style={{ fontSize: '14px', color: 'var(--text2)', marginTop: '24px', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            offline ({offline.length})
-          </h2>
+          <div className="section-header" style={{ marginTop: online.length > 0 ? 32 : 0 }}>
+            <span className="section-dot" style={{ background: 'var(--text-muted)' }} />
+            Offline ({offline.length})
+          </div>
           <div className="server-grid">
             {offline.map(s => (
               <ServerCard key={s.id} server={s} onClick={() => onSelect(s)} />

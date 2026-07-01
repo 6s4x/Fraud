@@ -6,8 +6,9 @@ export function getStore() {
   return _store;
 }
 
-export function setupWebSocket(wss, store) {
+export function setupWebSocket(serverWss, store) {
   _store = store;
+  wss = serverWss;
 
   wss.on('connection', (ws, req) => {
     const id = uuidv4();

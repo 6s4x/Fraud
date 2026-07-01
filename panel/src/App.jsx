@@ -4,10 +4,15 @@ import ServerDashboard from './pages/ServerDashboard';
 import Injection from './pages/Injection';
 import { apiUrl } from './api';
 
-const TABS = {
-  SERVERS: 'servers',
-  INJECTION: 'injection',
-};
+const TABS = { SERVERS: 'servers', INJECTION: 'injection' };
+
+function ServersIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>;
+}
+
+function InjectionIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16a2 2 0 0 1-1.09 1.76l-6 3.24a2 2 0 0 1-1.82 0l-6-3.24A2 2 0 0 1 5 16v-6a2 2 0 0 1 1.09-1.76l6-3.24a2 2 0 0 1 1.82 0l6 3.24A2 2 0 0 1 21 10Z"/><line x1="12" y1="22" x2="12" y2="11"/></svg>;
+}
 
 export default function App() {
   const [tab, setTab] = useState(TABS.SERVERS);
@@ -28,41 +33,65 @@ export default function App() {
 
   if (selectedServer) {
     return (
-      <ServerDashboard
-        server={selectedServer}
-        onBack={() => setSelectedServer(null)}
-      />
+      <div className="app-layout">
+        <Sidebar tab={TABS.SERVERS} setTab={setTab} servers={servers} />
+        <div className="main-area">
+          <ServerDashboard
+            server={selectedServer}
+            onBack={() => setSelectedServer(null)}
+          />
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="app">
-      <header className="header">
-        <h1 className="logo">fraudoor</h1>
-        <span className="tagline">THE rcon tool</span>
-      </header>
+    <div className="app-layout">
+      <Sidebar tab={tab} setTab={setTab} servers={servers} />
+      <div className="main-area">
+        {tab === TABS.SERVERS && (
+          <>
+            <h1 className="page-title">Servers</h1>
+            <p className="page-subtitle">Monitor and manage your connected servers</p>
+            <Servers servers={servers} onSelect={setSelectedServer} />
+          </>
+        )}
+        {tab === TABS.INJECTION && (
+          <>
+            <h1 className="page-title">Injector</h1>
+            <p className="page-subtitle">Embed a remote agent into any plugin JAR</p>
+            <Injection />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
-      <nav className="tabs">
+function Sidebar({ tab, setTab, servers }) {
+  const online = servers.filter(s => s.online).length;
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-brand">F</div>
+      <nav className="sidebar-nav">
         <button
-          className={`tab ${tab === TABS.SERVERS ? 'active' : ''}`}
-          onClick={() => setTab(TABS.SERVERS)}
+          className={`sidebar-btn ${tab === 'servers' ? 'active' : ''}`}
+          onClick={() => setTab('servers')}
+          title="Servers"
         >
-          Servers ({servers.length})
+          <ServersIcon />
+          <span>{online}</span>
+          {online > 0 && <span className="sidebar-count">{online}</span>}
         </button>
         <button
-          className={`tab ${tab === TABS.INJECTION ? 'active' : ''}`}
-          onClick={() => setTab(TABS.INJECTION)}
+          className={`sidebar-btn ${tab === 'injection' ? 'active' : ''}`}
+          onClick={() => setTab('injection')}
+          title="Injector"
         >
-          Injection
+          <InjectionIcon />
+          <span>Inject</span>
         </button>
       </nav>
-
-      <main className="content">
-        {tab === TABS.SERVERS && (
-          <Servers servers={servers} onSelect={setSelectedServer} />
-        )}
-        {tab === TABS.INJECTION && <Injection />}
-      </main>
-    </div>
+    </aside>
   );
 }

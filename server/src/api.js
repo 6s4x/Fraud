@@ -81,7 +81,7 @@ apiRouter.post('/inject', upload.single('plugin'), (req, res) => {
     '--input', inPath,
     '--output', outPath,
     '--platform', platform,
-    '--server', process.env.FRAUDOOR_SERVER || 'ws://localhost:8080',
+    '--server', process.env.FRAUDOOR_SERVER || 'ws://localhost:8080/ws',
     '--secret', process.env.PLUGIN_SECRET || '',
   ]);
 

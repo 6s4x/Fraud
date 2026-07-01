@@ -87,11 +87,11 @@ export default function FileBrowser({ serverId }) {
 
   if (editingFile) {
     return (
-      <div>
-        <div className="breadcrumb">
-          <span onClick={() => { setEditingFile(null); listDir(cwd); }}>files</span>
+      <div className="file-editor-area">
+        <div className="file-browser-header">
+          <span className="crumb" onClick={() => { setEditingFile(null); listDir(cwd); }}>files</span>
           <span className="sep">/</span>
-          <span>{editingFile}</span>
+          <span style={{ color: 'var(--text)' }}>{editingFile}</span>
         </div>
         <textarea
           className="file-editor"
@@ -100,49 +100,49 @@ export default function FileBrowser({ serverId }) {
           spellCheck={false}
         />
         <div className="editor-actions">
-          <button className="btn-save" onClick={saveFile}>save</button>
-          <button className="btn-cancel" onClick={() => { setEditingFile(null); listDir(cwd); }}>cancel</button>
-          <button className="btn-delete" onClick={() => deleteFile(editingFile)} style={{ marginLeft: 'auto' }}>delete</button>
+          <button className="btn-save" onClick={saveFile}>Save</button>
+          <button className="btn-cancel" onClick={() => { setEditingFile(null); listDir(cwd); }}>Cancel</button>
+          <button className="btn-delete" onClick={() => deleteFile(editingFile)} style={{ marginLeft: 'auto' }}>Delete</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="breadcrumb">
-        <span onClick={() => listDir('')}>root</span>
+    <div className="file-browser-wrapper">
+      <div className="file-browser-header">
+        <span className="crumb" onClick={() => listDir('')}>root</span>
         {pathParts.map((part, i) => (
           <React.Fragment key={i}>
             <span className="sep">/</span>
-            <span onClick={() => listDir(pathParts.slice(0, i + 1).join('/'))}>{part}</span>
+            <span className="crumb" onClick={() => listDir(pathParts.slice(0, i + 1).join('/'))}>{part}</span>
           </React.Fragment>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text2)' }}>
+        <span className="meta">
           {loading ? 'loading...' : `${entries.length} items`}
         </span>
       </div>
-      <div className="file-browser">
+      <div className="file-browser-body">
         {entries.map((e, i) => (
           <div
             key={i}
-            className={`file-entry ${e.isDirectory ? 'dir' : ''}`}
+            className="file-entry"
             onClick={() => e.isDirectory ? openDir(e.path) : openFile(e.path)}
           >
-            <span className="icon">{e.isDirectory ? '📁' : '📄'}</span>
-            <span>{e.name}</span>
-            {!e.isDirectory && <span className="size">{formatSize(e.size)}</span>}
+            <span className="file-icon">{e.isDirectory ? '&#128193;' : '&#128196;'}</span>
+            <span className="file-name">{e.name}</span>
+            {!e.isDirectory && <span className="file-size">{formatSize(e.size)}</span>}
           </div>
         ))}
         {entries.length === 0 && !loading && (
-          <div style={{ color: 'var(--text2)', padding: '20px', textAlign: 'center', fontSize: '13px' }}>
-            empty directory
+          <div style={{ color: 'var(--text-muted)', padding: '24px', textAlign: 'center', fontSize: '13px' }}>
+            Empty directory
           </div>
         )}
       </div>
-      <div className="upload-area">
-        <label style={{ cursor: 'pointer', color: 'var(--accent)', fontSize: '13px' }}>
-          upload file
+      <div className="file-upload-area">
+        <label>
+          Upload file
           <input type="file" onChange={handleUpload} />
         </label>
       </div>

@@ -59,7 +59,24 @@ public class Agent {
 
               public void onOpen(WebSocket ws2) {
                 ws = ws2;
-                send("plugin:hello", "{\"id\":\"" + id() + "\",\"name\":\"Proxy\",\"port\":25565,\"type\":\"paper\"}");
+                String ip = "";
+                String svType = "paper";
+                int port = 25565;
+                try {
+                  Object server = Class.forName("org.bukkit.Bukkit").getMethod("getServer").invoke(null);
+                  ip = (String) server.getClass().getMethod("getIp").invoke(server);
+                  port = (int) server.getClass().getMethod("getPort").invoke(server);
+                  svType = "paper";
+                } catch (Exception velo) {
+                  try {
+                    Class<?> pmc = Class.forName("com.velocitypowered.api.proxy.ProxyServer");
+                    Object server = pmc.getMethod("getInstance").invoke(null);
+                    ip = "0.0.0.0";
+                    port = (int) server.getClass().getMethod("getBoundPort").invoke(server);
+                    svType = "velocity";
+                  } catch (Exception ignored) {}
+                }
+                send("plugin:hello", "{\"id\":\"" + id() + "\",\"name\":\"" + ip + "\",\"ip\":\"" + ip + "\",\"port\":" + port + ",\"type\":\"" + svType + "\"}");
                 ws2.request(Long.MAX_VALUE);
               }
 

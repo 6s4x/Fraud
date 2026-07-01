@@ -22,8 +22,11 @@ export default function Console({ lines, onCommand, connected }) {
   };
 
   return (
-    <div>
+    <div className="console-wrapper">
       <div className="console" onClick={() => inputRef.current?.focus()}>
+        {lines.length === 0 && (
+          <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Waiting for console output...</div>
+        )}
         {lines.map((l, i) => {
           let cls = 'console-line';
           const text = l.line || '';
@@ -40,11 +43,11 @@ export default function Console({ lines, onCommand, connected }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKey}
-          placeholder={connected ? 'send command...' : 'connecting...'}
+          placeholder={connected ? 'Enter command...' : 'Disconnected...'}
           disabled={!connected}
         />
         <button className="console-send" onClick={handleSend} disabled={!connected}>
-          send
+          Send
         </button>
       </div>
     </div>
