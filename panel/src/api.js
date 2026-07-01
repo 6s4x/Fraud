@@ -7,11 +7,18 @@ const WS_URL = import.meta.env.VITE_WS_URL || `${(() => {
 let ws = null;
 let listeners = {};
 let reconnectTimer = null;
+let currentToken = null;
 
-export function connectWebSocket() {
-  if (ws && ws.readyState === WebSocket.OPEN) return;
+export function connectWebSocket(token) {
+  currentToken = token;
+  if (ws) {
+    try { ws.close(); } catch {}
+    ws = null;
+  }
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
 
-  ws = new WebSocket(WS_URL);
+  const url = token ? `${WS_URL}?token=${encodeURIComponent(token)}` : WS_URL;
+  ws = new WebSocket(url);
 
   ws.onopen = () => {
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
@@ -27,7 +34,7 @@ export function connectWebSocket() {
 
   ws.onclose = () => {
     emit('disconnected');
-    reconnectTimer = setTimeout(() => connectWebSocket(), 3000);
+    reconnectTimer = setTimeout(() => connectWebSocket(currentToken), 3000);
   };
 
   ws.onerror = () => {};

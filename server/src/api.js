@@ -6,6 +6,7 @@ import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { writeFileSync, unlinkSync, mkdtempSync, readFileSync, existsSync } from 'fs';
+import { loginHandler, authMiddleware, adminOnly } from './auth.js';
 
 export const apiRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -14,6 +15,10 @@ function store() {
   return getStore();
 }
 
+// --- Auth ---
+apiRouter.post('/login', loginHandler);
+
+// --- Servers (public for discovery) ---
 apiRouter.get('/servers', (req, res) => {
   const list = store().getServers().map(s => ({
     id: s.id, name: s.name, ip: s.ip, port: s.port,
@@ -35,9 +40,38 @@ apiRouter.get('/servers/:id', (req, res) => {
     online: s.online || false, tps: s.tps || 20,
     lastSeen: s.lastSeen, type: s.type || 'paper',
     plugins: s.plugins || [], players: s.players || [],
+    members: s.members || [],
   });
 });
 
+// --- Authorized members (auth required) ---
+apiRouter.get('/servers/:id/members', authMiddleware, (req, res) => {
+  const members = store().getMembers(req.params.id);
+  res.json({ members });
+});
+
+apiRouter.post('/servers/:id/members', authMiddleware, adminOnly, (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const ok = store().addMember(req.params.id, name);
+  if (!ok) return res.status(404).json({ error: 'server not found' });
+  res.json({ ok: true, members: store().getMembers(req.params.id) });
+});
+
+apiRouter.delete('/servers/:id/members/:name', authMiddleware, adminOnly, (req, res) => {
+  const ok = store().removeMember(req.params.id, req.params.name);
+  if (!ok) return res.status(404).json({ error: 'server or member not found' });
+  res.json({ ok: true, members: store().getMembers(req.params.id) });
+});
+
+// --- Logs (admin only) ---
+apiRouter.get('/logs', authMiddleware, adminOnly, (req, res) => {
+  const { type, serverId } = req.query;
+  const logs = store().getLogs({ type, serverId });
+  res.json({ logs });
+});
+
+// --- Plugin registration ---
 apiRouter.post('/plugin/register', (req, res) => {
   const { secret, name, ip, port, version, type } = req.body;
   if (secret !== process.env.PLUGIN_SECRET && process.env.PLUGIN_SECRET) {
@@ -56,6 +90,7 @@ apiRouter.post('/plugin/heartbeat', (req, res) => {
   res.json({ ok: true });
 });
 
+// --- Injection ---
 apiRouter.post('/inject', upload.single('plugin'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no plugin file uploaded' });
   if (!req.file.originalname.endsWith('.jar')) return res.status(400).json({ error: 'file must be a .jar' });

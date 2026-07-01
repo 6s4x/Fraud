@@ -17,6 +17,7 @@ application {
 
 repositories {
   mavenCentral()
+  maven { url 'https://repo.papermc.io/repository/maven-public/' }
 }
 
 dependencies {
@@ -24,6 +25,7 @@ dependencies {
   implementation 'org.ow2.asm:asm-commons:9.6'
   implementation 'commons-io:commons-io:2.15.1'
   compileOnly 'org.apache.logging.log4j:log4j-core:2.23.0'
+  compileOnly 'io.papermc.paper:paper-api:1.21.3'
 }
 
 shadowJar {

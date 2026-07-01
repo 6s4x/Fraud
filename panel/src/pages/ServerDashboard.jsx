@@ -1,6 +1,7 @@
 import React from 'react';
 import Console from '../components/Console';
 import FileBrowser from '../components/FileBrowser';
+import AuthorizedMembers from '../components/AuthorizedMembers';
 import { useConsole } from '../hooks/useConsole';
 
 export default function ServerDashboard({ server, onBack }) {
@@ -70,6 +71,10 @@ export default function ServerDashboard({ server, onBack }) {
             </span>
           </div>
           <Console lines={lines} onCommand={sendCommand} connected={connected} />
+        </div>
+
+        <div className="dashboard-panel full">
+          <AuthorizedMembers serverId={server.id} />
         </div>
 
         <div className="dashboard-panel full">

