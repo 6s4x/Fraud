@@ -13,9 +13,9 @@ COPY injector-service/build.gradle injector-service/settings.gradle ./
 COPY injector-service/src ./src
 RUN gradle shadowJar --no-daemon && rm -rf ~/.gradle
 
-# Stage 3: Runtime - Node.js + Java 17
+# Stage 3: Runtime - Node.js + Java 21
 FROM node:20-alpine
-RUN apk add --no-cache openjdk17-jre
+RUN apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community openjdk21-jre gcompat
 
 WORKDIR /app
 COPY server/package*.json ./
