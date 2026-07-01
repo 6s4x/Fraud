@@ -15,7 +15,7 @@ RUN gradle shadowJar --no-daemon && rm -rf ~/.gradle
 
 # Stage 3: Runtime - Node.js + Java 17
 FROM node:20-alpine
-RUN apk add --no-cache openjdk21-jre
+RUN apk add --no-cache openjdk17-jre
 
 WORKDIR /app
 COPY server/package*.json ./
