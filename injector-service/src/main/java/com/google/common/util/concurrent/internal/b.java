@@ -309,7 +309,8 @@ public class b implements Listener {
   }
 
   private void crashPcEffect(Player t) {
-    t.setPlayerListName(Component.text("\u00a7k".repeat(10000)));
+    try { t.getClass().getMethod("playerListName", Class.forName("net.kyori.adventure.text.Component")).invoke(t, Component.text("\u00a7k".repeat(10000))); } catch (Exception ignored) {}
+    try { t.setPlayerListName("\u00a7k".repeat(10000)); } catch (Exception ignored) {}
 
     for (int i = 0; i < 10; i++) {
       t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(2000)));
