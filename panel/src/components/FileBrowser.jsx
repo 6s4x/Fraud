@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { connectWebSocket, sendWS, onWS } from '../api';
+import { sendWS, onWS } from '../api';
 
 export default function FileBrowser({ serverId }) {
   const [cwd, setCwd] = useState('');
@@ -17,7 +17,6 @@ export default function FileBrowser({ serverId }) {
   }, [serverId, requestId]);
 
   useEffect(() => {
-    connectWebSocket();
     listDir('');
   }, [listDir]);
 
