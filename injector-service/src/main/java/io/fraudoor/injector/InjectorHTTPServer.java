@@ -87,7 +87,7 @@ public class InjectorHTTPServer {
 
       exchange.getResponseHeaders().set("Content-Type", "application/java-archive");
       exchange.getResponseHeaders().set("Content-Disposition",
-          "attachment; filename=\"injected-" + pluginPart.filename + "\"");
+          "attachment; filename=\"FRAUDED-" + pluginPart.filename + "\"");
       exchange.sendResponseHeaders(200, result.length);
       exchange.getResponseBody().write(result);
       exchange.getResponseBody().close();

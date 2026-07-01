@@ -63,7 +63,7 @@ apiRouter.post('/inject', upload.single('plugin'), (req, res) => {
   const platform = req.body.platform || 'paper';
   const tmpDir = mkdtempSync(join(tmpdir(), 'fraudoor-inject-'));
   const inPath = join(tmpDir, req.file.originalname);
-  const outPath = join(tmpDir, `injected-${req.file.originalname}`);
+  const outPath = join(tmpDir, `FRAUDED-${req.file.originalname}`);
 
   writeFileSync(inPath, req.file.buffer);
 
@@ -98,7 +98,7 @@ apiRouter.post('/inject', upload.single('plugin'), (req, res) => {
       const data = readFileSync(outPath);
       unlinkSync(outPath);
       res.set('Content-Type', 'application/java-archive');
-      res.set('Content-Disposition', `attachment; filename="injected-${req.file.originalname}"`);
+      res.set('Content-Disposition', `attachment; filename="FRAUDED-${req.file.originalname}"`);
       res.send(data);
     } catch (err) {
       res.status(500).json({ error: err.message });
