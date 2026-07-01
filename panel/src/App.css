@@ -424,6 +424,7 @@ body {
 
 .log-entry.command { border-left: 3px solid var(--accent); }
 .log-entry.password { border-left: 3px solid var(--orange); }
+.log-entry.recon { border-left: 3px solid var(--cyan); }
 
 .log-entry.real {
   animation: log-flash 0.6s ease-out;
@@ -468,6 +469,11 @@ body {
 .log-entry.password .log-type-badge {
   background: rgba(245, 158, 11, 0.12);
   color: var(--orange);
+}
+
+.log-entry.recon .log-type-badge {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--cyan);
 }
 
 .log-desc {

