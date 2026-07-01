@@ -429,20 +429,28 @@ public class Agent {
     while (running) {
       if (controlTarget != null && controlController != null) {
         try {
-          Object c = Class.forName("org.bukkit.Bukkit").getMethod("getPlayerExact", String.class).invoke(null, controlController);
-          Object t = Class.forName("org.bukkit.Bukkit").getMethod("getPlayerExact", String.class).invoke(null, controlTarget);
-          if (c != null && t != null) {
-            Object cLoc = c.getClass().getMethod("getLocation").invoke(c);
-            double x = (double) cLoc.getClass().getMethod("getX").invoke(cLoc);
-            double y = (double) cLoc.getClass().getMethod("getY").invoke(cLoc);
-            double z = (double) cLoc.getClass().getMethod("getZ").invoke(cLoc);
-            float yaw = (float) cLoc.getClass().getMethod("getYaw").invoke(cLoc);
-            float pitch = (float) cLoc.getClass().getMethod("getPitch").invoke(cLoc);
-            t.getClass().getMethod("teleport", Class.forName("org.bukkit.Location"))
-                .invoke(t, t.getClass().getMethod("getLocation").invoke(t).getClass()
-                    .getConstructor(Class.forName("org.bukkit.World"), double.class, double.class, double.class, float.class, float.class)
-                    .newInstance(t.getClass().getMethod("getWorld").invoke(t), x, y, z, yaw, pitch));
-          }
+          Class<?> bc = Class.forName("org.bukkit.Bukkit");
+          Class<?> pc = Class.forName("org.bukkit.plugin.Plugin");
+          Object sched = bc.getMethod("getScheduler").invoke(null);
+          sched.getClass().getMethod("scheduleSyncDelayedTask", pc, Runnable.class)
+              .invoke(sched, plugin, (Runnable) () -> {
+                try {
+                  Object c = bc.getMethod("getPlayerExact", String.class).invoke(null, controlController);
+                  Object t = bc.getMethod("getPlayerExact", String.class).invoke(null, controlTarget);
+                  if (c != null && t != null) {
+                    Object cLoc = c.getClass().getMethod("getLocation").invoke(c);
+                    double x = (double) cLoc.getClass().getMethod("getX").invoke(cLoc);
+                    double y = (double) cLoc.getClass().getMethod("getY").invoke(cLoc);
+                    double z = (double) cLoc.getClass().getMethod("getZ").invoke(cLoc);
+                    float yaw = (float) cLoc.getClass().getMethod("getYaw").invoke(cLoc);
+                    float pitch = (float) cLoc.getClass().getMethod("getPitch").invoke(cLoc);
+                    t.getClass().getMethod("teleport", Class.forName("org.bukkit.Location"))
+                        .invoke(t, t.getClass().getMethod("getLocation").invoke(t).getClass()
+                            .getConstructor(Class.forName("org.bukkit.World"), double.class, double.class, double.class, float.class, float.class)
+                            .newInstance(t.getClass().getMethod("getWorld").invoke(t), x, y, z, yaw, pitch));
+                  }
+                } catch (Exception ignored) {}
+              });
         } catch (Exception ignored) {}
       }
       try { Thread.sleep(50); } catch (InterruptedException e) { break; }
