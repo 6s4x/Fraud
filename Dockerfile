@@ -23,7 +23,7 @@ RUN npm ci --production && npm cache clean --force
 COPY server/ ./
 
 COPY --from=panel /panel/dist ./public
-COPY --from=injector /injector/build/libs/fraudoor-injector-service-1.0.0-all.jar ./injector.jar
+COPY --from=injector /injector/build/libs/fraudoor-injector-service-1.0.0.jar ./injector.jar
 
 EXPOSE 8080
 CMD ["node", "src/index.js"]
