@@ -9,6 +9,7 @@ import { apiRouter } from './api.js';
 import { setupWebSocket } from './ws.js';
 import { initStore } from './store.js';
 import { initDiscord } from './discord.js';
+import { initUsers } from './users.js';
 
 const PORT = process.env.PORT || 8080;
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +38,7 @@ app.get('*', (req, res) => {
 
 const wss = new WebSocketServer({ server, path: '/ws' });
 const store = initStore();
+initUsers();
 
 setupWebSocket(wss, store);
 initDiscord(store, wss);

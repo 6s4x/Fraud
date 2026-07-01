@@ -1,19 +1,14 @@
 import jwt from 'jsonwebtoken';
+import { loginUser } from './users.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fraudoor-dev-secret-change-in-production';
-
-const ACCOUNTS = [
-  { username: 'root', password: 'cipa123', role: 'admin' },
-  { username: 'rwijkoper', password: 'cwel123', role: 'user' },
-  { username: 'spacja', password: 'dupa123', role: 'user' },
-];
 
 export function loginHandler(req, res) {
   const { username, password } = req.body || {};
   if (!username || !password) {
     return res.status(400).json({ error: 'username and password required' });
   }
-  const account = ACCOUNTS.find(a => a.username === username && a.password === password);
+  const account = loginUser(username, password);
   if (!account) {
     return res.status(401).json({ error: 'invalid credentials' });
   }

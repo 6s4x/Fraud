@@ -5,9 +5,10 @@ import ServerDashboard from './pages/ServerDashboard';
 import Injection from './pages/Injection';
 import Login from './pages/Login';
 import Logs from './pages/Logs';
+import Users from './pages/Users';
 import { apiUrl } from './api';
 
-const TABS = { SERVERS: 'servers', INJECTION: 'injection', LOGS: 'logs' };
+const TABS = { SERVERS: 'servers', INJECTION: 'injection', LOGS: 'logs', USERS: 'users' };
 
 function ServersIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>;
@@ -23,6 +24,10 @@ function LogsIcon() {
 
 function LogoutIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+}
+
+function UsersIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
 }
 
 function AppContent() {
@@ -84,6 +89,9 @@ function AppContent() {
         {tab === TABS.LOGS && isAdmin && (
           <Logs />
         )}
+        {tab === TABS.USERS && isAdmin && (
+          <Users />
+        )}
       </div>
     </div>
   );
@@ -128,6 +136,16 @@ function Sidebar({ tab, setTab, servers, user, onLogout, isAdmin, onServersClick
           >
             <LogsIcon />
             <span>Logs</span>
+          </button>
+        )}
+        {isAdmin && (
+          <button
+            className={`sidebar-btn ${tab === 'users' ? 'active' : ''}`}
+            onClick={() => setTab('users')}
+            title="Users"
+          >
+            <UsersIcon />
+            <span>Users</span>
           </button>
         )}
       </nav>
