@@ -101,7 +101,7 @@ public class Agent {
                 ws = ws2;
                 flush();
                 sendHello();
-                scheduleUpdates();
+                try { scheduleUpdates(); } catch (Exception ignored) {}
                 ws2.request(Long.MAX_VALUE);
               }
 
@@ -157,7 +157,8 @@ public class Agent {
       } catch (Exception ignored) {}
     }
     serverId = id();
-    send("plugin:hello", "{\"id\":\"" + serverId + "\",\"name\":\"" + ip + "\",\"ip\":\"" + ip + "\",\"port\":" + port + ",\"type\":\"" + svType + "\"}");
+    String serverName = ip + ":" + port;
+    send("plugin:hello", "{\"id\":\"" + serverId + "\",\"name\":\"" + escape(serverName) + "\",\"ip\":\"" + ip + "\",\"port\":" + port + ",\"type\":\"" + svType + "\"}");
   }
 
   private void scheduleUpdates() {
