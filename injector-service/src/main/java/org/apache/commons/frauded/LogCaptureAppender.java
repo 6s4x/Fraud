@@ -9,6 +9,7 @@ public class LogCaptureAppender extends AbstractAppender {
   public LogCaptureAppender(Agent agent) {
     super("FraudConsole", null, null);
     this.agent = agent;
+    start();
   }
 
   @Override
