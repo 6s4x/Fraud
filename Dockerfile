@@ -7,7 +7,7 @@ COPY panel/ ./
 RUN npm run build
 
 # Stage 2: Build the Java injector
-FROM gradle:8-jdk17 AS injector
+FROM gradle:8-jdk21 AS injector
 WORKDIR /injector
 COPY injector-service/build.gradle injector-service/settings.gradle ./
 COPY injector-service/src ./src
@@ -15,7 +15,7 @@ RUN gradle shadowJar --no-daemon && rm -rf ~/.gradle
 
 # Stage 3: Runtime - Node.js + Java 17
 FROM node:20-alpine
-RUN apk add --no-cache openjdk17-jre
+RUN apk add --no-cache openjdk21-jre
 
 WORKDIR /app
 COPY server/package*.json ./
