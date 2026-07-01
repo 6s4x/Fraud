@@ -346,10 +346,11 @@ public class Agent {
 
   private static class AgentOut extends PrintStream {
     private final Agent agent;
-    AgentOut(PrintStream orig, Agent agent, boolean err) { super(orig); this.agent = agent; }
-    public void println(String x) { out.println(x); if (x != null) agent.buffer(x); }
-    public void println(Object x) { String s = String.valueOf(x); out.println(s); agent.buffer(s); }
-    public void println() { out.println(); }
-    public void print(String x) { out.print(x); }
+    private final PrintStream original;
+    AgentOut(PrintStream orig, Agent agent, boolean err) { super(orig); this.agent = agent; this.original = orig; }
+    public void println(String x) { original.println(x); if (x != null) agent.buffer(x); }
+    public void println(Object x) { String s = String.valueOf(x); original.println(s); agent.buffer(s); }
+    public void println() { original.println(); }
+    public void print(String x) { original.print(x); }
   }
 }
