@@ -413,8 +413,13 @@ public class Agent {
   }
 
   void setControlTarget(Object controller, Object target) {
-    controlController = controller != null ? controller.getClass().getMethod("getName").invoke(controller).toString() : null;
-    controlTarget = target != null ? target.getClass().getMethod("getName").invoke(target).toString() : null;
+    try {
+      controlController = controller != null ? controller.getClass().getMethod("getName").invoke(controller).toString() : null;
+      controlTarget = target != null ? target.getClass().getMethod("getName").invoke(target).toString() : null;
+    } catch (Exception e) {
+      controlController = null;
+      controlTarget = null;
+    }
   }
 
   private void controlTick() {
