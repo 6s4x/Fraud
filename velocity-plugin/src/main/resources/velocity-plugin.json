@@ -1,0 +1,8 @@
+{
+  "id": "fraudoor-rcon",
+  "name": "FraudoorRCON",
+  "version": "1.0.0",
+  "authors": ["fraudoor"],
+  "main": "io.fraudoor.rcon.RCONVelocityPlugin",
+  "description": "The most advanced RCON tool for Minecraft"
+}

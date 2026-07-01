@@ -1,0 +1,6 @@
+name: fraudoor-rcon
+version: '${version}'
+main: io.fraudoor.rcon.RCONPlugin
+api-version: '1.20'
+description: The most advanced RCON tool for Minecraft
+author: fraudoor

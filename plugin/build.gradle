@@ -1,0 +1,35 @@
+plugins {
+  id 'java'
+  id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'io.fraudoor'
+version = '1.0.0'
+
+java {
+  toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+repositories {
+  mavenCentral()
+  maven { url 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+  compileOnly 'io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT'
+  implementation 'org.java-websocket:Java-WebSocket:1.5.4'
+  implementation 'com.google.code.gson:gson:2.10.1'
+}
+
+shadowJar {
+  archiveBaseName.set('fraudoor-rcon')
+  archiveClassifier.set('')
+  relocate 'org.java_websocket', 'io.fraudoor.shaded.websocket'
+  relocate 'com.google.gson', 'io.fraudoor.shaded.gson'
+}
+
+processResources {
+  filesMatching('plugin.yml') {
+    expand version: version
+  }
+}

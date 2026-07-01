@@ -1,0 +1,13 @@
+{
+  "name": "fraudoor",
+  "private": true,
+  "version": "1.0.0",
+  "description": "THE most advanced RCON tool for Minecraft. Ever.",
+  "scripts": {
+    "server": "cd server && npm start",
+    "server:dev": "cd server && npm run dev",
+    "panel": "cd panel && npm run dev",
+    "panel:build": "cd panel && npm run build",
+    "install:all": "cd server && npm install && cd ../panel && npm install"
+  }
+}

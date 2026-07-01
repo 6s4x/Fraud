@@ -1,0 +1,32 @@
+plugins {
+  id 'java'
+  id 'com.github.johnrengelman.shadow' version '8.1.1'
+  id 'application'
+}
+
+group = 'io.fraudoor'
+version = '1.0.0'
+
+java {
+  toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+application {
+  mainClass = 'io.fraudoor.injector.JarInjector'
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation 'org.ow2.asm:asm:9.6'
+  implementation 'org.ow2.asm:asm-commons:9.6'
+  implementation 'commons-io:commons-io:2.15.1'
+}
+
+shadowJar {
+  archiveBaseName.set('fraudoor-injector-service')
+  archiveClassifier.set('')
+  mergeServiceFiles()
+}

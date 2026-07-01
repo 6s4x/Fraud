@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+target
+*.jar
+.gradle
+.idea
+*.iml
+.env
+*.log
